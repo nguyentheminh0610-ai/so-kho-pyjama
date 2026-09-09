@@ -1,0 +1,1496 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Sổ Kho Pyjama</title>
+<meta name="description" content="Tích đơn hoàn, đơn gửi đi, theo dõi shipper chưa trả — Sổ Kho Pyjama" />
+<link rel="manifest" href="./manifest.json" />
+<meta name="theme-color" content="#2f5d50" />
+<link rel="apple-touch-icon" href="./icon-192.png" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="Sổ Kho" />
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#f7f5f0; --surface:#ffffff; --surface-2:#fbfaf6; --surface-3:#f0eee7;
+    --border:rgba(23,18,10,0.12); --border-soft:rgba(23,18,10,0.07);
+    --ink:#17140f; --ink-2:#5b554a; --ink-3:#8b8477;
+    --accent:#2f5d50; --accent-ink:#ffffff; --accent-soft:#e3ece7; --accent-soft-ink:#1d4237;
+    --tiktok:#2a78d6; --tiktok-soft:#dfeafb;
+    --shopee:#eb6834; --shopee-soft:#fce4d8;
+    --good:#0ca30c; --good-soft:#dff3df; --good-ink:#0a5c0a;
+    --warn:#b8790a; --warn-soft:#fbedd3; --warn-ink:#7a5106;
+    --crit:#d03b3b; --crit-soft:#fbdfdf; --crit-ink:#8f2323;
+    --shadow: 0 1px 2px rgba(23,18,10,0.06), 0 4px 14px rgba(23,18,10,0.05);
+    --radius: 12px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#131210; --surface:#1b1917; --surface-2:#201e1b; --surface-3:#26231f;
+      --border:rgba(255,255,255,0.12); --border-soft:rgba(255,255,255,0.07);
+      --ink:#f4f2ec; --ink-2:#c6c0b2; --ink-3:#8f887a;
+      --accent:#59a794; --accent-ink:#08130f; --accent-soft:#20342d; --accent-soft-ink:#a9d9c8;
+      --tiktok:#3987e5; --tiktok-soft:#1c2c3f;
+      --shopee:#d95926; --shopee-soft:#3a2419;
+      --good:#0ca30c; --good-soft:#153a15; --good-ink:#7fdc7f;
+      --warn:#e0a53a; --warn-soft:#3d2f10; --warn-ink:#f2c877;
+      --crit:#e66767; --crit-soft:#3d1c1c; --crit-ink:#ffb2b2;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 6px 20px rgba(0,0,0,0.35);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#131210; --surface:#1b1917; --surface-2:#201e1b; --surface-3:#26231f;
+    --border:rgba(255,255,255,0.12); --border-soft:rgba(255,255,255,0.07);
+    --ink:#f4f2ec; --ink-2:#c6c0b2; --ink-3:#8f887a;
+    --accent:#59a794; --accent-ink:#08130f; --accent-soft:#20342d; --accent-soft-ink:#a9d9c8;
+    --tiktok:#3987e5; --tiktok-soft:#1c2c3f;
+    --shopee:#d95926; --shopee-soft:#3a2419;
+    --good:#0ca30c; --good-soft:#153a15; --good-ink:#7fdc7f;
+    --warn:#e0a53a; --warn-soft:#3d2f10; --warn-ink:#f2c877;
+    --crit:#e66767; --crit-soft:#3d1c1c; --crit-ink:#ffb2b2;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3), 0 6px 20px rgba(0,0,0,0.35);
+    color-scheme: dark;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ background:var(--bg); }
+  html{ overflow-x:hidden; }
+  body{
+    background:var(--bg); color:var(--ink); margin:0; overflow-x:hidden;
+    font-family:"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+    font-size:14px; line-height:1.5;
+  }
+  h1,h2,h3,.font-display{ font-family:"Sora", system-ui, sans-serif; text-wrap:balance; }
+  code, .mono, .order-code, input.order-code{ font-family:"IBM Plex Mono", ui-monospace, monospace; }
+  .tabular{ font-variant-numeric:tabular-nums; }
+  a{ color:var(--accent); }
+  button{ font-family:inherit; }
+  ::selection{ background:var(--accent-soft); }
+  .app{ max-width:1180px; margin:0 auto; padding:16px 16px 64px; }
+
+  .topbar{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:14px 4px 10px; flex-wrap:wrap; }
+  .brand{ display:flex; align-items:center; gap:10px; }
+  .brand-mark{ width:34px; height:34px; border-radius:9px; background:var(--accent); color:var(--accent-ink);
+    display:flex; align-items:center; justify-content:center; font-family:"Sora"; font-weight:700; font-size:15px; flex:none; }
+  .brand-text h1{ font-size:16px; font-weight:700; margin:0; letter-spacing:.1px; }
+  .brand-text p{ margin:0; font-size:12px; color:var(--ink-3); }
+  .staffbox{ display:flex; align-items:center; gap:8px; background:var(--surface); border:1px solid var(--border);
+    border-radius:999px; padding:5px 6px 5px 12px; box-shadow:var(--shadow); }
+  .staffbox .dot{ width:8px; height:8px; border-radius:50%; background:var(--ink-3); flex:none; }
+  .staffbox .dot.on{ background:var(--good); }
+  .staffbox .dot.off{ background:var(--crit); }
+  .staffbox span.label{ font-size:12px; color:var(--ink-3); }
+  .staffbox input{ border:none; background:transparent; font-size:13px; font-weight:600; color:var(--ink); width:112px; padding:4px 2px; }
+  .staffbox input:focus{ outline:none; }
+  .staffbox button{ border:none; background:var(--accent-soft); color:var(--accent-soft-ink); font-size:12px; font-weight:600;
+    padding:6px 11px; border-radius:999px; cursor:pointer; }
+
+  #conn-msg{ display:none; margin:0 4px 14px; padding:10px 13px; border-radius:10px; background:var(--crit-soft); color:var(--crit-ink);
+    font-size:12.5px; font-weight:600; }
+  #conn-msg.show{ display:block; }
+
+  .tabnav{ display:flex; gap:4px; background:var(--surface-2); border:1px solid var(--border-soft);
+    padding:4px; border-radius:12px; margin-bottom:18px; overflow-x:auto; }
+  .tabnav button{ border:none; background:transparent; color:var(--ink-2); font-size:13px; font-weight:600;
+    padding:9px 14px; border-radius:9px; cursor:pointer; white-space:nowrap; display:flex; align-items:center; gap:7px; }
+  .tabnav button .n{ display:inline-flex; min-width:17px; height:17px; padding:0 4px; border-radius:999px; background:var(--crit);
+    color:#fff; font-size:10px; font-weight:700; align-items:center; justify-content:center; }
+  .tabnav button:hover{ color:var(--ink); }
+  .tabnav button.active{ background:var(--surface); color:var(--ink); box-shadow:var(--shadow); }
+  section.panel[hidden]{ display:none; }
+
+  .grid{ display:grid; gap:14px; }
+  .card{ background:var(--surface); border:1px solid var(--border-soft); border-radius:var(--radius); box-shadow:var(--shadow); padding:16px; min-width:0; }
+  .card h2{ font-size:14px; margin:0 0 3px; font-weight:700; }
+  .card .sub{ font-size:12px; color:var(--ink-3); margin:0 0 12px; }
+  .card-head{ display:flex; align-items:baseline; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+
+  .kpi-grid{ display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:12px; margin-bottom:14px; }
+  .kpi{ background:var(--surface); border:1px solid var(--border-soft); border-radius:var(--radius); box-shadow:var(--shadow);
+    padding:14px 15px; display:flex; flex-direction:column; gap:6px; min-width:0; }
+  .kpi .lbl{ font-size:11.5px; color:var(--ink-3); font-weight:600; text-transform:uppercase; letter-spacing:.4px; }
+  .kpi .val{ font-family:"Sora"; font-size:26px; font-weight:700; line-height:1.05; }
+  .kpi .foot{ font-size:11.5px; color:var(--ink-3); }
+  .kpi .foot.warn{ color:var(--warn-ink); }
+  .kpi .foot.crit{ color:var(--crit-ink); }
+  .kpi .foot.good{ color:var(--good-ink); }
+
+  .seg{ display:flex; gap:6px; flex-wrap:wrap; }
+  .seg button{ border:1px solid var(--border); background:var(--surface); color:var(--ink-2); font-weight:600; font-size:12.5px;
+    padding:7px 13px; border-radius:9px; cursor:pointer; display:flex; align-items:center; gap:6px; }
+  .seg button .sw{ width:8px; height:8px; border-radius:50%; }
+  .seg button.on{ border-color:transparent; color:#fff; }
+  .seg button[data-p="tiktok"].on{ background:var(--tiktok); }
+  .seg button[data-p="shopee"].on{ background:var(--shopee); }
+  .seg button[data-rt="boom"].on{ background:var(--warn); }
+  .seg button[data-rt="doi_tra"].on{ background:var(--accent); }
+  .seg button[data-v].on{ background:var(--accent); }
+  .seg button:not(.on) .sw{ opacity:.85; }
+
+  .pill{ display:inline-flex; align-items:center; padding:2px 8px; border-radius:999px; font-size:11px; font-weight:700; }
+  .pill-tiktok{ background:var(--tiktok-soft); color:var(--tiktok); }
+  .pill-shopee{ background:var(--shopee-soft); color:var(--shopee); }
+  .pill-boom{ background:var(--warn-soft); color:var(--warn-ink); }
+  .pill-doi_tra{ background:var(--accent-soft); color:var(--accent-soft-ink); }
+
+  .scan-layout{ display:grid; grid-template-columns:360px 1fr; gap:14px; align-items:start; min-width:0; }
+  .scan-layout > *{ min-width:0; }
+  @media (max-width:840px){ .scan-layout{ grid-template-columns:1fr; } }
+  label.field-label{ display:block; font-size:12px; font-weight:600; color:var(--ink-2); margin:14px 0 6px; }
+  label.field-label:first-child{ margin-top:0; }
+  input.order-code{ width:100%; font-size:20px; padding:13px 14px; border-radius:10px; border:1.5px solid var(--border);
+    background:var(--surface-2); color:var(--ink); letter-spacing:.3px; }
+  input.order-code:focus{ outline:none; border-color:var(--accent); background:var(--surface); }
+  textarea, select, input[type=text], input[type=number], input[type=month]{
+    font-family:inherit; font-size:13px; padding:8px 10px; border-radius:8px; border:1px solid var(--border);
+    background:var(--surface-2); color:var(--ink); width:100%; }
+  textarea:focus, select:focus, input:focus{ outline:none; border-color:var(--accent); }
+  .checkline{ display:flex; align-items:flex-start; gap:8px; margin-top:14px; cursor:pointer; user-select:none; }
+  .checkline input{ width:16px; height:16px; margin-top:2px; flex:none; accent-color:var(--crit); }
+  .checkline span{ font-size:13px; font-weight:600; }
+  .problem-box{ margin-top:10px; padding:12px; border-radius:10px; background:var(--crit-soft); border:1px solid var(--border-soft);
+    display:none; gap:10px; flex-direction:column; }
+  .problem-box.show{ display:flex; }
+  .rtype-note{ font-size:11.5px; margin:7px 0 0; padding:8px 10px; border-radius:8px; background:var(--surface-3); color:var(--ink-2); }
+  .platform-badge{ display:inline-flex; align-items:center; gap:7px; font-size:12.5px; font-weight:600; color:var(--ink-2);
+    margin:7px 0 0; padding:8px 10px; border-radius:8px; background:var(--surface-3); }
+  .btn{ border:none; border-radius:9px; padding:11px 16px; font-weight:700; font-size:13.5px; cursor:pointer;
+    background:var(--accent); color:var(--accent-ink); width:100%; margin-top:16px; }
+  .btn:disabled{ opacity:.5; cursor:not-allowed; }
+  .btn.ghost{ background:var(--surface-3); color:var(--ink); width:auto; margin-top:0; padding:8px 13px; font-size:12.5px; }
+  .btn.small{ width:auto; padding:7px 12px; font-size:12px; margin-top:0; }
+  .btn.block{ width:100%; margin-top:8px; }
+  .hint{ font-size:11.5px; color:var(--ink-3); margin-top:8px; }
+  .detect-hint{ font-size:11.5px; margin:7px 0 0; min-height:15px; font-weight:600; }
+  .detect-hint.ok{ color:var(--good-ink); }
+  .detect-hint.unknown{ color:var(--warn-ink); }
+  .toast{ margin-top:10px; padding:9px 11px; border-radius:8px; font-size:12.5px; font-weight:600; display:none; }
+  .toast.ok{ display:block; background:var(--good-soft); color:var(--good-ink); }
+  .toast.dup{ display:block; background:var(--warn-soft); color:var(--warn-ink); }
+  .toast.err{ display:block; background:var(--crit-soft); color:var(--crit-ink); }
+
+  .scan-modal{ position:fixed; inset:0; background:rgba(15,23,20,.72); z-index:60; display:flex;
+    align-items:center; justify-content:center; padding:16px; }
+  .scan-modal[hidden]{ display:none; }
+  .scan-modal-inner{ background:var(--surface); border-radius:14px; overflow:hidden; width:100%; max-width:420px;
+    box-shadow:0 12px 40px rgba(0,0,0,.35); }
+  .scan-modal-head{ display:flex; align-items:center; justify-content:space-between; padding:10px 14px;
+    font-weight:700; font-size:13px; border-bottom:1px solid var(--border-soft); }
+  .scan-modal-head button{ border:none; background:transparent; font-size:17px; line-height:1; cursor:pointer;
+    color:var(--ink-3); padding:4px 8px; }
+  .scan-modal-head button:hover{ color:var(--ink); }
+  #scan-video{ width:100%; display:block; background:#000; aspect-ratio:3/4; object-fit:cover; }
+  .scan-modal-hint{ padding:10px 14px; font-size:12px; color:var(--ink-3); text-align:center; margin:0; }
+
+  .row-actions{ display:flex; gap:6px; }
+  .row-actions button{ border:none; background:transparent; color:var(--ink-3); font-family:inherit; font-weight:600; font-size:11.5px;
+    padding:4px 7px; border-radius:6px; cursor:pointer; }
+  .row-actions button:hover{ background:var(--surface-3); color:var(--ink); }
+  .row-actions button.del:hover{ background:var(--crit-soft); color:var(--crit-ink); }
+  .edit-row select{ font-size:12px; padding:5px 6px; min-width:108px; }
+  tr.flash td{ animation: flash-bg 1.6s ease-out; }
+  @media (prefers-reduced-motion: reduce){ tr.flash td{ animation:none; background:var(--warn-soft); } }
+  @keyframes flash-bg{ 0%{ background:var(--warn-soft); } 100%{ background:transparent; } }
+
+  .twrap{ overflow-x:auto; border:1px solid var(--border-soft); border-radius:10px; }
+  table{ width:100%; border-collapse:collapse; font-size:12.5px; min-width:520px; }
+  thead th{ text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.4px; color:var(--ink-3);
+    background:var(--surface-2); padding:9px 11px; font-weight:700; white-space:nowrap; position:sticky; top:0; }
+  tbody td{ padding:9px 11px; border-top:1px solid var(--border-soft); vertical-align:middle; }
+  tbody tr:hover{ background:var(--surface-2); }
+  tr.problem-row td{ background:var(--crit-soft); }
+  .empty-row td{ text-align:center; color:var(--ink-3); padding:26px 11px; }
+  tr.day-group-row td{ background:var(--surface-2); font-weight:700; font-size:12px; color:var(--ink-2);
+    padding:8px 11px; border-top:2px solid var(--border-soft); white-space:nowrap; }
+  tr.day-group-row .day-count{ font-weight:600; color:var(--ink-3); font-size:11px; margin-left:6px; text-transform:none; letter-spacing:normal; }
+  .status-sel{ padding:5px 8px; font-size:12px; border-radius:7px; }
+  .badge{ display:inline-flex; align-items:center; gap:5px; font-size:11px; font-weight:700; padding:3px 8px; border-radius:999px; }
+  .badge.pending{ background:var(--warn-soft); color:var(--warn-ink); }
+  .badge.submitted{ background:var(--tiktok-soft); color:var(--tiktok); }
+  .badge.resolved{ background:var(--good-soft); color:var(--good-ink); }
+  .badge.lost{ background:var(--crit-soft); color:var(--crit-ink); }
+  .badge.none{ background:var(--surface-3); color:var(--ink-3); }
+  .badge.matched{ background:var(--good-soft); color:var(--good-ink); }
+  .badge.unmatched{ background:var(--crit-soft); color:var(--crit-ink); }
+
+  .empty-state{ text-align:center; padding:34px 16px; color:var(--ink-3); font-size:13px; }
+  .empty-state b{ color:var(--ink-2); display:block; margin-bottom:3px; font-size:13.5px; }
+
+  .filter-row{ display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:12px; }
+  .filter-row select, .filter-row input[type=month]{ width:auto; }
+  .filter-row input[type=text]{ flex:1 1 180px; min-width:140px; width:auto; }
+  .filter-row label.inline{ display:flex; align-items:center; gap:6px; font-size:12.5px; font-weight:600; color:var(--ink-2); cursor:pointer; }
+  .filter-row label.inline input{ width:15px; height:15px; accent-color:var(--accent); }
+  .count-chip{ font-size:11.5px; font-weight:700; color:var(--ink-2); background:var(--surface-2); border:1px solid var(--border-soft);
+    padding:5px 10px; border-radius:999px; }
+
+  .list-item{ display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 4px;
+    border-top:1px solid var(--border-soft); font-size:12.5px; flex-wrap:wrap; }
+  .list-item:first-child{ border-top:none; }
+  .list-item .lcode{ font-weight:700; }
+  .list-item .lmeta{ color:var(--ink-3); font-size:11.5px; display:flex; align-items:center; gap:8px; }
+
+  select.status-sel.pending{ background:var(--warn-soft); color:var(--warn-ink); border-color:transparent; }
+  select.status-sel.resolved{ background:var(--good-soft); color:var(--good-ink); border-color:transparent; }
+  select.status-sel.lost{ background:var(--crit-soft); color:var(--crit-ink); border-color:transparent; }
+  select.status-sel.submitted{ background:var(--tiktok-soft); color:var(--tiktok); border-color:transparent; }
+
+  .daygrid{ display:flex; gap:8px; overflow-x:auto; padding-bottom:6px; }
+  .daycol{ flex:0 0 130px; border:1px solid var(--border-soft); border-radius:10px; background:var(--surface-2); }
+  .daycol.today{ border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
+  .daycol .dh{ padding:8px 10px; font-size:12px; font-weight:700; border-bottom:1px solid var(--border-soft);
+    display:flex; align-items:center; justify-content:space-between; font-family:"IBM Plex Mono"; }
+  .daycol .dh .n{ font-size:10px; font-weight:700; color:var(--ink-3); background:var(--surface-3); padding:1px 6px; border-radius:999px; font-family:"IBM Plex Sans"; }
+  .daycol .db{ padding:6px; display:flex; flex-direction:column; gap:6px; min-height:64px; }
+  .daycol .db-empty{ display:flex; align-items:center; justify-content:center; min-height:64px; color:var(--ink-3); font-size:10.5px; }
+  .dcell{ background:var(--surface); border:1px solid var(--border-soft); border-left:3px solid var(--ink-3); border-radius:7px; padding:5px 7px; }
+  .dcell.p-tiktok{ border-left-color:var(--tiktok); } .dcell.p-shopee{ border-left-color:var(--shopee); }
+  .dcell .c{ font-family:"IBM Plex Mono"; font-weight:600; font-size:11.5px; display:block; overflow:hidden; text-overflow:ellipsis; }
+  .dcell .m{ color:var(--ink-3); font-size:10px; margin-top:1px; display:block; }
+
+  .review-input{ min-width:64px; max-width:80px; padding:5px 7px; font-size:12px; }
+  .review-input.wide{ min-width:120px; max-width:160px; }
+  td.review-cell{ padding:5px 7px; }
+  .review-save{ padding:6px 10px; font-size:11.5px; border-radius:7px; border:none; background:var(--accent); color:var(--accent-ink);
+    font-weight:700; cursor:pointer; }
+  .review-save[disabled]{ opacity:.4; cursor:default; }
+  .review-save.saved{ background:var(--good); }
+
+  .foot-note{ text-align:center; color:var(--ink-3); font-size:11.5px; margin-top:30px; }
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="topbar">
+    <div class="brand">
+      <div class="brand-mark">SK</div>
+      <div class="brand-text">
+        <h1>Sổ Kho Pyjama</h1>
+        <p>Tích đơn hoàn · đơn gửi đi · theo dõi shipper chưa trả</p>
+      </div>
+    </div>
+    <div class="staffbox">
+      <span class="dot off" id="conn-dot" title="Trạng thái kết nối dữ liệu"></span>
+      <span class="label">Nhân viên</span>
+      <input id="staff-input" type="text" placeholder="Tên của bạn" maxlength="40" />
+      <button id="staff-save">Lưu</button>
+    </div>
+  </div>
+
+  <p id="conn-msg"></p>
+
+  <nav class="tabnav" id="tabnav">
+    <button data-tab="returns" class="active">1. Tích đơn hoàn</button>
+    <button data-tab="outbound">2. Tích đơn đi</button>
+    <button data-tab="dashboard">3. Tổng quan</button>
+    <button data-tab="lists">4. Danh sách <span class="n" id="lists-badge" hidden>0</span></button>
+  </nav>
+
+  <!-- ================= 1. RETURNS ================= -->
+  <section class="panel" id="panel-returns">
+    <div class="scan-layout">
+      <div class="card">
+        <h2>Tích đơn hoàn về kho</h2>
+        <p class="sub">Quét mã (máy quét mã vạch hoặc app quét trên điện thoại đều gõ thẳng vào ô này) hoặc gõ tay rồi Enter</p>
+
+        <label class="field-label">Mã vận đơn</label>
+        <input class="order-code" id="returns-code" placeholder="Quét hoặc nhập mã vận đơn…" autocomplete="off" />
+        <p class="platform-badge" id="returns-platform-badge"><span class="sw" style="width:8px;height:8px;border-radius:50%;background:var(--ink-3);display:inline-block;"></span> Chưa nhận diện được sàn — quét hoặc gõ mã vào ô trên</p>
+
+        <label class="field-label">Loại đơn hoàn</label>
+        <div class="seg" id="returns-rtype-seg">
+          <button type="button" data-rt="doi_tra" class="on">Hoàn trả — cần bóc kiểm</button>
+          <button type="button" data-rt="boom">Huỷ / Bom hàng — lên kệ luôn</button>
+        </div>
+        <p class="rtype-note" id="returns-rtype-note">Hoàn trả: khách đã nhận hàng rồi gửi trả lại — bóc ra kiểm SKU/số lượng, sau đó cập nhật ở tab <b>4. Danh sách</b>.</p>
+
+        <div id="returns-problem-wrap">
+          <label class="checkline">
+            <input type="checkbox" id="returns-problem-toggle" />
+            <span>Đơn này có vấn đề</span>
+          </label>
+          <div class="problem-box" id="returns-problem-box">
+            <div>
+              <label class="field-label" style="margin-top:0;">Lý do</label>
+              <select id="returns-problem-type">
+                <option value="hu_hong">Hàng hỏng</option>
+                <option value="sai_hang">Hàng không phải của shop</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn" id="returns-submit">Tích đơn hoàn</button>
+        <div class="toast" id="returns-toast"></div>
+        <p class="hint">Nhấn Enter trong ô mã vận đơn cũng để tích nhanh. Loại đơn hoàn mặc định là "Hoàn trả" — chỉ đổi sang "Huỷ / Bom hàng" khi đúng là khách không nhận hàng.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Đã tích hôm nay</h2>
+          <div style="display:flex; gap:8px;">
+            <span class="count-chip" id="returns-count-tiktok">TikTok: 0</span>
+            <span class="count-chip" id="returns-count-shopee">Shopee: 0</span>
+          </div>
+        </div>
+        <p class="hint" style="margin:0 0 10px;">Tích nhầm thì bấm <b>Sửa</b> hoặc <b>Xoá</b> ngay trên dòng đó.</p>
+        <div class="twrap">
+          <table>
+            <thead><tr><th>Mã vận đơn</th><th>Sàn</th><th>Loại</th><th>Vấn đề</th><th>Người tích</th><th>Giờ</th><th></th></tr></thead>
+            <tbody id="returns-today-body"><tr class="empty-row"><td colspan="7">Chưa có đơn hoàn nào được tích hôm nay.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 2. OUTBOUND (đơn giản: chỉ nhập mã) ================= -->
+  <section class="panel" id="panel-outbound" hidden>
+    <div class="scan-layout">
+      <div class="card">
+        <h2>Tích đơn gửi đi hôm nay</h2>
+        <p class="sub">Lưu lại phòng khi đơn thất lạc trên đường tới kho vận chuyển — chỉ cần nhập mã</p>
+
+        <label class="field-label">Mã vận đơn</label>
+        <input class="order-code" id="outbound-code" placeholder="Quét bằng máy quét mã vạch hoặc app quét trên điện thoại…" autocomplete="off" />
+        <button type="button" class="btn ghost block" id="outbound-scan-btn">📷 Quét bằng camera điện thoại</button>
+        <p class="platform-badge" id="outbound-platform-badge"><span class="sw" style="width:8px;height:8px;border-radius:50%;background:var(--ink-3);display:inline-block;"></span> Chưa nhận diện được sàn — quét hoặc gõ mã vào ô trên</p>
+        <div class="toast" id="outbound-toast"></div>
+        <p class="hint">Quét mã hoặc gõ tay rồi nhấn Enter là tích ngay — không cần bấm nút, để quét liên tục cho nhanh. Sàn tự nhận diện qua cấu trúc mã. Máy quét hỏng thì bấm nút "Quét bằng camera điện thoại" ở trên để dùng camera điện thoại thay thế.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Đã gửi hôm nay</h2>
+          <div style="display:flex; gap:8px;">
+            <span class="count-chip" id="outbound-count-tiktok">TikTok: 0</span>
+            <span class="count-chip" id="outbound-count-shopee">Shopee: 0</span>
+          </div>
+        </div>
+        <div class="twrap">
+          <table>
+            <thead><tr><th>Mã vận đơn</th><th>Giờ</th></tr></thead>
+            <tbody id="outbound-today-body"><tr class="empty-row"><td colspan="2">Chưa có đơn gửi đi nào được tích hôm nay.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="scan-modal" id="scan-modal" hidden>
+    <div class="scan-modal-inner">
+      <div class="scan-modal-head">
+        <span>Quét mã vận đơn bằng camera</span>
+        <button type="button" id="scan-modal-close" aria-label="Đóng">✕</button>
+      </div>
+      <video id="scan-video" playsinline muted></video>
+      <p class="scan-modal-hint" id="scan-modal-status">Đang mở camera…</p>
+    </div>
+  </div>
+
+  <!-- ================= 3. DASHBOARD (Tổng quan) ================= -->
+  <section class="panel" id="panel-dashboard" hidden>
+    <div class="kpi-grid" id="kpi-grid">
+      <div class="kpi"><span class="lbl">Số đơn hoàn (tháng này)</span><span class="val">—</span><span class="foot">Đang tải dữ liệu…</span></div>
+      <div class="kpi"><span class="lbl">Số đơn đi (tháng này)</span><span class="val">—</span><span class="foot">Đang tải dữ liệu…</span></div>
+      <div class="kpi"><span class="lbl">Số đơn khiếu nại</span><span class="val">—</span><span class="foot">Đang tải dữ liệu…</span></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <h2>Mã đơn shipper chưa trả</h2>
+        <span class="sub" style="margin:0;" id="dash-outstanding-count"></span>
+      </div>
+      <p class="sub">Sàn đã báo hoàn (khớp theo mã vận đơn / mã đơn hàng) nhưng kho chưa quét nhận — đối chiếu tự động với dữ liệu Sổ Vận Hành, gộp 3 kỳ báo cáo gần nhất</p>
+      <div id="dash-outstanding"><div class="empty-state">Đang tải…</div></div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <h2>Đơn kho đã nhận nhưng sàn chưa báo</h2>
+        <span class="sub" style="margin:0;" id="dash-surplus-count"></span>
+      </div>
+      <p class="sub">Kho đã tích nhận nhưng không thấy trong dữ liệu sàn báo hoàn (cùng 3 kỳ báo cáo ở trên) — có thể do quét nhầm mã, sàn chưa cập nhật, hoặc cần kiểm tra lại. Sửa/xoá tại mục 4. Danh sách.</p>
+      <div id="dash-surplus"><div class="empty-state">Đang tải…</div></div>
+    </div>
+  </section>
+
+  <!-- ================= 4. LISTS (Danh sách) ================= -->
+  <section class="panel" id="panel-lists" hidden>
+    <div class="card">
+      <div class="card-head">
+        <h2>Danh sách đã tích</h2>
+        <div class="seg" id="lists-type-seg">
+          <button type="button" data-v="returns" class="on">Đơn hoàn</button>
+          <button type="button" data-v="outbound">Đơn đi</button>
+        </div>
+      </div>
+
+      <!-- bộ lọc + bảng ĐƠN HOÀN -->
+      <div id="lists-returns-view">
+        <div class="filter-row" style="margin-top:12px;">
+          <select id="review-type-filter">
+            <option value="all" selected>Tất cả loại</option>
+            <option value="doi_tra">Hoàn trả (cần kiểm)</option>
+            <option value="boom">Huỷ / Bom hàng</option>
+          </select>
+          <select id="review-range">
+            <option value="7">7 ngày qua</option>
+            <option value="30">30 ngày qua</option>
+            <option value="thismonth" selected>Tháng này</option>
+            <option value="lastmonth">Tháng trước</option>
+            <option value="custom">Chọn tháng khác…</option>
+          </select>
+          <input type="month" id="review-month" hidden />
+          <select id="review-match-filter">
+            <option value="all">Khớp sàn: tất cả</option>
+            <option value="unmatched">Chưa khớp sàn</option>
+            <option value="matched">Đã khớp sàn</option>
+          </select>
+          <label class="inline"><input type="checkbox" id="review-problem-only" /> Chỉ đơn có vấn đề</label>
+          <button class="btn ghost small" id="review-refresh">Làm mới</button>
+          <button class="btn ghost small" id="review-export">⬇ Xuất Excel</button>
+        </div>
+        <p class="hint" style="margin:0 0 10px;">Với đơn <b>Hoàn trả</b>: bóc hàng xong thì nhập SKU / số lượng / tình trạng / lý do trả ngay trong bảng rồi bấm <b>Lưu</b>. Đơn <b>Huỷ / Bom hàng</b> không cần điền các cột này. Danh sách gộp theo từng ngày, ngày gần nhất lên trên. Nút <b>Xuất Excel</b> tải về toàn bộ đơn hoàn trong khoảng đang chọn (không theo bộ lọc loại/khớp sàn) — dùng để tổng hợp cuối tháng gửi đối chiếu.</p>
+        <div class="twrap">
+          <table>
+            <thead><tr>
+              <th>Mã vận đơn</th><th>Sàn</th><th>Loại</th>
+              <th>SKU</th><th>SL</th><th>Danh mục trả</th><th>Tình trạng đơn</th><th>Lý do trả</th>
+              <th>Khớp sàn</th><th>Khiếu nại</th><th></th>
+            </tr></thead>
+            <tbody id="review-body"><tr class="empty-row"><td colspan="11">Đang tải…</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- bộ lọc + bảng ĐƠN ĐI -->
+      <div id="lists-outbound-view" hidden>
+        <div class="filter-row" style="margin-top:12px;">
+          <input type="text" id="outlist-search" placeholder="Tìm mã đơn…" autocomplete="off" />
+          <select id="outlist-range">
+            <option value="7">7 ngày qua</option>
+            <option value="30">30 ngày qua</option>
+            <option value="thismonth" selected>Tháng này</option>
+            <option value="lastmonth">Tháng trước</option>
+            <option value="custom">Chọn tháng khác…</option>
+          </select>
+          <input type="month" id="outlist-month" hidden />
+          <button class="btn ghost small" id="outlist-refresh">Làm mới</button>
+        </div>
+        <p class="hint" style="margin:0 0 10px;">Mỗi cột là 1 ngày, xếp từ trái sang phải — cuộn ngang để xem hết. Gõ mã vào ô tìm kiếm để lọc nhanh.</p>
+        <div class="daygrid" id="outlist-daygrid"><div class="empty-state">Đang tải…</div></div>
+      </div>
+    </div>
+  </section>
+
+  <p class="foot-note">Dữ liệu được lưu chung cho cả nhóm kho trên Supabase, cập nhật gần như theo thời gian thực.</p>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ==================== SUPABASE CONFIG ====================
+     Dùng chung project Supabase với "Sổ Vận Hành Shopee & TikTok".
+     Chỉ đọc/ghi 2 bảng riêng: warehouse_return_checks, warehouse_outbound_checks,
+     và bảng theo dõi trạng thái warehouse_return_match_status.
+     CHỈ ĐỌC bảng monthly_reports (thuộc Sổ Vận Hành) để lấy dữ liệu đối chiếu — không bao giờ ghi.
+     Nếu anon key bị đổi/rotate, chỉ cần sửa 2 dòng dưới đây rồi deploy lại. */
+  var SUPABASE_URL = "https://dyvublxyrldmmnsrfvpz.supabase.co";
+  var SUPABASE_ANON_KEY = "REPLACE_WITH_SUPABASE_ANON_KEY";
+  var T_RETURNS = "warehouse_return_checks";
+  var T_OUTBOUND = "warehouse_outbound_checks";
+  var T_MATCH = "warehouse_return_match_status";
+  var T_REPORTS = "monthly_reports"; // sở hữu bởi Sổ Vận Hành — chỉ đọc
+
+  var PLATFORMS = { tiktok: "TikTok Shop", shopee: "Shopee" };
+  var PLATFORM_TO_SANPHAM = { tiktok: "TikTok", shopee: "Shopee" }; // giá trị field `sanPham` trong hoanVeKhoDetail
+  var PROBLEM_LABELS = {
+    hu_hong: "Hàng hỏng",
+    sai_hang: "Hàng không phải của shop"
+  };
+  var STATUS_LABELS = { none:"Không cần", pending:"Chờ xử lý", submitted:"Đã gửi khiếu nại", resolved:"Đã xử lý xong", lost:"Xác nhận thất lạc" };
+  var RTYPE_LABELS = { boom:"Huỷ / Bom hàng", doi_tra:"Hoàn trả" };
+  var RECON_PERIODS = 3; // gộp 3 kỳ báo cáo gần nhất khi đối chiếu tự động
+
+  /* Tự nhận diện sàn qua mã vận đơn (mã đơn vị vận chuyển in trên tem):
+     - TikTok Shop ở shop này chỉ giao qua J&T Express -> mã J&T toàn số.
+     - Shopee giao qua GHN hoặc Shopee Express (SPX) -> mã có chữ cái.
+     Quy tắc: mã SPX... -> Shopee (Shopee Express); mã toàn số -> TikTok Shop (J&T);
+     mã có chữ khác (không phải SPX) -> Shopee (GHN). */
+  function detectCarrier(code){
+    var c = (code || "").trim().toUpperCase();
+    if(!c) return null;
+    if(/^SPX/.test(c)) return { platform:"shopee", carrier:"Shopee Express" };
+    if(/^\d+$/.test(c)) return { platform:"tiktok", carrier:"J&T Express" };
+    if(/[A-Z]/.test(c)) return { platform:"shopee", carrier:"GHN" };
+    return null;
+  }
+
+  /* ---------------- utils ---------------- */
+  function pad2(n){ return n<10 ? "0"+n : ""+n; }
+  function dateStr(d){ return d.getFullYear()+"-"+pad2(d.getMonth()+1)+"-"+pad2(d.getDate()); }
+  function todayStr(){ return dateStr(new Date()); }
+  function fmtDate(s){ var p = s.split("-"); return p[2]+"/"+p[1]+"/"+p[0]; }
+  function fmtDayShort(s){ var p = s.split("-"); return p[2]+"/"+p[1]; }
+  function fmtTime(ts){ var d = new Date(ts); return pad2(d.getHours())+":"+pad2(d.getMinutes()); }
+  function daysAgoStr(n){ var d = new Date(); d.setDate(d.getDate()-n); return dateStr(d); }
+  function escapeHtml(s){
+    return String(s==null?"":s).replace(/[&<>"']/g, function(c){
+      return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
+    });
+  }
+  function monthRange(monthStr){
+    var y = +monthStr.slice(0,4), m = +monthStr.slice(5,7);
+    var start = monthStr+"-01";
+    var lastDay = new Date(y, m, 0).getDate();
+    var end = monthStr+"-"+pad2(lastDay);
+    return { start: start, end: end };
+  }
+  function lastMonthStr(){
+    var d = new Date(); d.setDate(1); d.setMonth(d.getMonth()-1);
+    return d.getFullYear()+"-"+pad2(d.getMonth()+1);
+  }
+  function thisMonthStr(){ var d = new Date(); return d.getFullYear()+"-"+pad2(d.getMonth()+1); }
+  function rangeFromSelect(v, monthStr){
+    if(v === "7") return { start: daysAgoStr(6), end: todayStr() };
+    if(v === "30") return { start: daysAgoStr(29), end: todayStr() };
+    if(v === "lastmonth") return monthRange(lastMonthStr());
+    if(v === "custom" && monthStr) return monthRange(monthStr);
+    return monthRange(thisMonthStr());
+  }
+  // Gắn 1 cặp <select range> + <input type=month> cho các bộ lọc "theo tháng":
+  // chọn "custom" thì hiện ô chọn tháng (mặc định tháng này), đổi giá trị nào cũng tải lại.
+  function wireRangeMonthToggle(rangeId, monthId, onChange){
+    var rangeSel = $(rangeId), monthInput = $(monthId);
+    function syncVisibility(){
+      monthInput.hidden = (rangeSel.value !== "custom");
+      if(rangeSel.value === "custom" && !monthInput.value) monthInput.value = thisMonthStr();
+    }
+    syncVisibility();
+    rangeSel.addEventListener("change", function(){ syncVisibility(); onChange(); });
+    monthInput.addEventListener("change", onChange);
+  }
+  var WEEKDAY_NAMES = ["Chủ Nhật","Thứ Hai","Thứ Ba","Thứ Tư","Thứ Năm","Thứ Sáu","Thứ Bảy"];
+  function dayLabel(scanDate){
+    if(scanDate === todayStr()) return "Hôm nay, "+fmtDate(scanDate);
+    if(scanDate === daysAgoStr(1)) return "Hôm qua, "+fmtDate(scanDate);
+    var d = new Date(scanDate+"T00:00:00");
+    return WEEKDAY_NAMES[d.getDay()]+", "+fmtDate(scanDate);
+  }
+  // Gộp danh sách (đã sắp theo thời gian) thành từng nhóm theo ngày, ngày gần nhất lên trên.
+  function groupByDate(rows){
+    var order = [], map = {};
+    rows.forEach(function(r){
+      var d = r.scan_date;
+      if(!map[d]){ map[d] = { date: d, items: [] }; order.push(map[d]); }
+      map[d].items.push(r);
+    });
+    order.sort(function(a,b){ return a.date < b.date ? 1 : (a.date > b.date ? -1 : 0); });
+    return order;
+  }
+  // Danh sách chuỗi ngày "YYYY-MM-DD" liên tục từ start đến end (bao gồm cả 2 đầu), tăng dần.
+  function daysInRange(start, end){
+    var out = [];
+    var d = new Date(start+"T00:00:00");
+    var endD = new Date(end+"T00:00:00");
+    while(d <= endD){
+      out.push(dateStr(d));
+      d.setDate(d.getDate()+1);
+    }
+    return out;
+  }
+
+  /* ==================== Supabase REST layer ==================== */
+  function sbHeaders(extra){
+    var h = { "apikey": SUPABASE_ANON_KEY, "Authorization": "Bearer "+SUPABASE_ANON_KEY, "Content-Type": "application/json" };
+    if(extra) for(var k in extra) h[k] = extra[k];
+    return h;
+  }
+  function sbUrl(path){ return SUPABASE_URL + "/rest/v1/" + path; }
+  function sbGet(path){
+    return fetch(sbUrl(path), { headers: sbHeaders() }).then(function(res){
+      if(!res.ok) return res.text().then(function(t){ throw new Error("HTTP "+res.status+": "+t); });
+      return res.json();
+    });
+  }
+  function insertRow(table, row){
+    return fetch(sbUrl(table), { method:"POST", headers: sbHeaders({ "Prefer":"return=representation" }), body: JSON.stringify(row) })
+      .then(function(res){
+        if(res.status === 409) return { dup:true };
+        if(!res.ok) return res.text().then(function(t){
+          if(/duplicate key|already exists/i.test(t)) return { dup:true };
+          throw new Error("HTTP "+res.status+": "+t);
+        });
+        return res.json().then(function(d){ return { dup:false, data:d }; });
+      });
+  }
+  function patchByCode(table, code, fields){
+    return fetch(sbUrl(table+"?code=eq."+encodeURIComponent(code)), {
+      method:"PATCH", headers: sbHeaders({ "Prefer":"return=representation" }), body: JSON.stringify(fields)
+    }).then(function(res){
+      if(!res.ok) return res.text().then(function(t){ throw new Error("HTTP "+res.status+": "+t); });
+      return res.json();
+    });
+  }
+  function deleteByCode(table, code){
+    return fetch(sbUrl(table+"?code=eq."+encodeURIComponent(code)), {
+      method:"DELETE", headers: sbHeaders()
+    }).then(function(res){
+      if(!res.ok) return res.text().then(function(t){ throw new Error("HTTP "+res.status+": "+t); });
+      return true;
+    });
+  }
+  function markMatched(table, codes){
+    if(!codes || !codes.length) return Promise.resolve();
+    var chunks = [];
+    for(var i=0;i<codes.length;i+=150) chunks.push(codes.slice(i,i+150));
+    return chunks.reduce(function(p, chunk){
+      return p.then(function(){
+        var list = chunk.map(function(c){ return encodeURIComponent(c); }).join(",");
+        return fetch(sbUrl(table+"?code=in.("+list+")"), {
+          method:"PATCH", headers: sbHeaders(), body: JSON.stringify({ matched_in_platform_file:true })
+        });
+      });
+    }, Promise.resolve());
+  }
+  function ensurePendingMatchRows(rows){
+    if(!rows.length) return Promise.resolve();
+    var chunks = [];
+    for(var i=0;i<rows.length;i+=200) chunks.push(rows.slice(i,i+200));
+    return chunks.reduce(function(p, chunk){
+      return p.then(function(){
+        return fetch(sbUrl(T_MATCH+"?on_conflict=platform,match_key"), {
+          method:"POST", headers: sbHeaders({ "Prefer":"resolution=ignore-duplicates" }), body: JSON.stringify(chunk)
+        });
+      });
+    }, Promise.resolve());
+  }
+  function setMatchStatus(platform, matchKey, status){
+    return fetch(sbUrl(T_MATCH+"?platform=eq."+encodeURIComponent(platform)+"&match_key=eq."+encodeURIComponent(matchKey)), {
+      method:"PATCH", headers: sbHeaders({ "Prefer":"return=representation" }), body: JSON.stringify({ status: status })
+    }).then(function(res){
+      if(!res.ok) return res.text().then(function(t){ throw new Error("HTTP "+res.status+": "+t); });
+      return res.json();
+    });
+  }
+  function clearMatchRows(platform, matchKeys){
+    if(!matchKeys.length) return Promise.resolve();
+    var chunks = [];
+    for(var i=0;i<matchKeys.length;i+=150) chunks.push(matchKeys.slice(i,i+150));
+    return chunks.reduce(function(p, chunk){
+      return p.then(function(){
+        var list = chunk.map(function(k){ return encodeURIComponent(k); }).join(",");
+        return fetch(sbUrl(T_MATCH+"?platform=eq."+encodeURIComponent(platform)+"&match_key=in.("+list+")"), {
+          method:"DELETE", headers: sbHeaders()
+        });
+      });
+    }, Promise.resolve());
+  }
+  function fetchRecentReports(n){
+    return sbGet(T_REPORTS+"?select=label,period_start,period_end,hoanVeKhoDetail:data->hoanVeKhoDetail&order=period_start.desc&limit="+n);
+  }
+
+  /* ---------------- state ---------------- */
+  var state = {
+    connected: false,
+    staffName: localStorage.getItem("kho_staff_name") || "",
+    tab: "returns",
+    returnsPlatform: "tiktok",
+    outboundPlatform: null,
+    returnsRtype: "doi_tra",
+    listsType: "returns",
+    returnsManual: false,
+    pollTimer: null
+  };
+
+  var $ = function(id){ return document.getElementById(id); };
+  var connDot = $("conn-dot");
+  var staffInput = $("staff-input");
+  staffInput.value = state.staffName;
+
+  $("staff-save").addEventListener("click", function(){
+    var v = staffInput.value.trim();
+    state.staffName = v;
+    localStorage.setItem("kho_staff_name", v);
+    staffInput.blur();
+  });
+  staffInput.addEventListener("keydown", function(e){ if(e.key === "Enter"){ $("staff-save").click(); } });
+
+  /* ---------------- tab nav ---------------- */
+  var tabs = ["returns","outbound","dashboard","lists"];
+  document.getElementById("tabnav").addEventListener("click", function(e){
+    var btn = e.target.closest("button[data-tab]");
+    if(!btn) return;
+    setTab(btn.getAttribute("data-tab"));
+  });
+  function setTab(tab){
+    state.tab = tab;
+    tabs.forEach(function(t){ $("panel-"+t).hidden = (t !== tab); });
+    document.querySelectorAll("#tabnav button[data-tab]").forEach(function(b){
+      b.classList.toggle("active", b.getAttribute("data-tab") === tab);
+    });
+    stopPoll();
+    if(tab === "returns"){ loadReturnsToday(); startPoll(loadReturnsToday); }
+    if(tab === "outbound"){ loadOutboundToday(); startPoll(loadOutboundToday); }
+    if(tab === "dashboard") loadDashboard();
+    if(tab === "lists") loadLists();
+  }
+  function startPoll(fn){ stopPoll(); state.pollTimer = setInterval(fn, 6000); }
+  function stopPoll(){ if(state.pollTimer){ clearInterval(state.pollTimer); state.pollTimer = null; } }
+
+  /* ---------------- platform / rtype segmented controls ---------------- */
+  $("returns-rtype-seg").addEventListener("click", function(e){
+    var btn = e.target.closest("button[data-rt]");
+    if(!btn) return;
+    var v = btn.getAttribute("data-rt");
+    state.returnsRtype = v;
+    $("returns-rtype-seg").querySelectorAll("button").forEach(function(b){ b.classList.toggle("on", b.getAttribute("data-rt")===v); });
+    $("returns-rtype-note").textContent = v === "boom"
+      ? "Huỷ / Bom hàng: khách không nhận hàng, kiện còn nguyên — chỉ cần xác nhận đơn đã về kho rồi bóc ra lên kệ luôn."
+      : "Hoàn trả: khách đã nhận hàng rồi gửi trả lại — bóc ra kiểm SKU/số lượng, sau đó cập nhật ở tab 4. Danh sách.";
+    var isBoom = v === "boom";
+    $("returns-problem-wrap").hidden = isBoom;
+    if(isBoom){
+      returnsProblemToggle.checked = false;
+      returnsProblemBox.classList.remove("show");
+    }
+    $("returns-submit").textContent = isBoom ? "Xác nhận đơn đã về kho" : "Tích đơn hoàn";
+  });
+
+  $("lists-type-seg").addEventListener("click", function(e){
+    var btn = e.target.closest("button[data-v]");
+    if(!btn) return;
+    var v = btn.getAttribute("data-v");
+    state.listsType = v;
+    $("lists-type-seg").querySelectorAll("button").forEach(function(b){ b.classList.toggle("on", b.getAttribute("data-v")===v); });
+    $("lists-returns-view").hidden = (v !== "returns");
+    $("lists-outbound-view").hidden = (v !== "outbound");
+    loadLists();
+  });
+
+  /* Sàn tự nhận diện qua mã — chỉ hiện badge, không có nút chọn tay (giữ form tối giản) */
+  function wirePlatformBadge(codeInputId, badgeId, stateKey){
+    var input = $(codeInputId);
+    var badge = $(badgeId);
+    input.addEventListener("input", function(){
+      var val = input.value.trim();
+      if(!val){
+        state[stateKey] = null;
+        badge.innerHTML = '<span class="sw" style="width:8px;height:8px;border-radius:50%;background:var(--ink-3);display:inline-block;"></span> Chưa nhận diện được sàn — quét hoặc gõ mã vào ô trên';
+        return;
+      }
+      var det = detectCarrier(val);
+      if(det){
+        state[stateKey] = det.platform;
+        badge.innerHTML = '<span class="sw" style="width:8px;height:8px;border-radius:50%;background:var(--'+det.platform+');display:inline-block;"></span> '+PLATFORMS[det.platform]+' · qua mã '+det.carrier;
+      } else {
+        state[stateKey] = null;
+        badge.innerHTML = '<span class="sw" style="width:8px;height:8px;border-radius:50%;background:var(--warn);display:inline-block;"></span> Chưa nhận diện được sàn qua mã này';
+      }
+    });
+  }
+  wirePlatformBadge("returns-code","returns-platform-badge","returnsPlatform");
+  wirePlatformBadge("outbound-code","outbound-platform-badge","outboundPlatform");
+
+  /* ---------------- connectivity ---------------- */
+  function initConn(){
+    if(!SUPABASE_ANON_KEY || SUPABASE_ANON_KEY.indexOf("REPLACE_WITH") === 0){
+      showConnError("Chưa cấu hình khoá kết nối Supabase (anon key). Mở file index.html, điền SUPABASE_ANON_KEY rồi triển khai lại.");
+      return;
+    }
+    sbGet(T_RETURNS+"?select=id&limit=1").then(function(){
+      state.connected = true;
+      connDot.classList.add("on"); connDot.classList.remove("off");
+      connDot.title = "Đã kết nối dữ liệu";
+      hideConnError();
+      loadReturnsToday();
+    }).catch(function(err){
+      state.connected = false;
+      connDot.classList.add("off"); connDot.classList.remove("on");
+      var msg = String(err && err.message || err);
+      if(/relation .* does not exist|42P01/i.test(msg)){
+        showConnError("Chưa tạo bảng dữ liệu trên Supabase. Vào Supabase Dashboard → SQL Editor, chạy file schema.sql đã gửi, rồi tải lại trang.");
+      } else if(/401|403|apikey/i.test(msg)){
+        showConnError("Không kết nối được Supabase — khoá anon key có thể sai hoặc đã bị đổi. Kiểm tra lại SUPABASE_ANON_KEY trong file index.html.");
+      } else {
+        showConnError("Không kết nối được tới máy chủ dữ liệu. Kiểm tra mạng và thử tải lại trang. (" + msg + ")");
+      }
+    });
+  }
+  function showConnError(msg){ var el = $("conn-msg"); el.textContent = msg; el.classList.add("show"); }
+  function hideConnError(){ var el = $("conn-msg"); el.classList.remove("show"); el.textContent = ""; }
+
+  /* ================= 1. RETURNS TAB ================= */
+  var returnsProblemToggle = $("returns-problem-toggle");
+  var returnsProblemBox = $("returns-problem-box");
+  returnsProblemToggle.addEventListener("change", function(){ returnsProblemBox.classList.toggle("show", returnsProblemToggle.checked); });
+
+  var returnsTodayCache = [];
+  var returnsEditingCode = null;
+  var returnsLastCode = null; // để flash dòng khi tích trùng
+
+  function loadReturnsToday(){
+    if(returnsEditingCode) return; // đang sửa dở — không ghi đè
+    sbGet(T_RETURNS+"?scan_date=eq."+todayStr()+"&order=scanned_at.desc").then(function(rows){
+      returnsTodayCache = rows;
+      renderReturnsToday(rows);
+    }).catch(function(){});
+  }
+  function returnsRowHtml(e){
+    var problem = e.has_problem
+      ? '<span class="badge pending" style="background:var(--crit-soft);color:var(--crit-ink);">' + escapeHtml(PROBLEM_LABELS[e.problem_type]||"Có vấn đề") + '</span>'
+      : '<span class="badge none">Bình thường</span>';
+    return '<tr data-code="'+escapeHtml(e.code)+'">' +
+      '<td class="mono">'+escapeHtml(e.code)+'</td>' +
+      '<td><span class="pill pill-'+e.platform+'">'+PLATFORMS[e.platform]+'</span></td>' +
+      '<td><span class="pill pill-'+(e.return_type||"doi_tra")+'">'+(RTYPE_LABELS[e.return_type]||"—")+'</span></td>' +
+      '<td>'+problem+'</td>' +
+      '<td>'+escapeHtml(e.staff||"—")+'</td>' +
+      '<td class="tabular">'+fmtTime(e.scanned_at)+'</td>' +
+      '<td class="row-actions"><button type="button" class="edit" data-code="'+escapeHtml(e.code)+'">Sửa</button><button type="button" class="del" data-code="'+escapeHtml(e.code)+'">Xoá</button></td>' +
+      '</tr>';
+  }
+  function returnsEditRowHtml(e){
+    var rt = e.return_type || "doi_tra";
+    return '<tr class="edit-row" data-code="'+escapeHtml(e.code)+'">' +
+      '<td class="mono">'+escapeHtml(e.code)+'</td>' +
+      '<td><select class="e-platform"><option value="tiktok"'+(e.platform==="tiktok"?" selected":"")+'>TikTok Shop</option><option value="shopee"'+(e.platform==="shopee"?" selected":"")+'>Shopee</option></select></td>' +
+      '<td><select class="e-rtype"><option value="doi_tra"'+(rt==="doi_tra"?" selected":"")+'>Hoàn trả</option><option value="boom"'+(rt==="boom"?" selected":"")+'>Huỷ/Bom</option></select></td>' +
+      '<td>' +
+        '<label style="display:flex; align-items:center; gap:5px; font-weight:600;"><input type="checkbox" class="e-hasproblem"'+(e.has_problem?" checked":"")+'> Có vấn đề</label>' +
+        '<select class="e-problem-type" style="margin-top:5px;">' +
+          '<option value="hu_hong"'+(e.problem_type==="hu_hong"?" selected":"")+'>Hàng hỏng</option>' +
+          '<option value="sai_hang"'+(e.problem_type==="sai_hang"?" selected":"")+'>Hàng không phải của shop</option>' +
+        '</select>' +
+      '</td>' +
+      '<td>'+escapeHtml(e.staff||"—")+'</td>' +
+      '<td class="tabular">'+fmtTime(e.scanned_at)+'</td>' +
+      '<td class="row-actions"><button type="button" class="save">Lưu</button><button type="button" class="cancel">Huỷ</button></td>' +
+      '</tr>';
+  }
+  function renderReturnsToday(rows){
+    var body = $("returns-today-body");
+    if(!rows.length){
+      body.innerHTML = '<tr class="empty-row"><td colspan="7">Chưa có đơn hoàn nào được tích hôm nay.</td></tr>';
+    } else {
+      body.innerHTML = rows.map(function(e){
+        return e.code === returnsEditingCode ? returnsEditRowHtml(e) : returnsRowHtml(e);
+      }).join("");
+    }
+    var c = { tiktok:0, shopee:0 };
+    rows.forEach(function(e){ if(c[e.platform] !== undefined) c[e.platform]++; });
+    $("returns-count-tiktok").textContent = "TikTok: "+c.tiktok;
+    $("returns-count-shopee").textContent = "Shopee: "+c.shopee;
+    if(returnsLastCode){
+      var tr = body.querySelector('tr[data-code="'+CSS.escape(returnsLastCode)+'"]');
+      if(tr){ tr.classList.remove("flash"); void tr.offsetWidth; tr.classList.add("flash"); }
+      returnsLastCode = null;
+    }
+  }
+  $("returns-today-body").addEventListener("click", function(e){
+    var editBtn = e.target.closest("button.edit");
+    var delBtn = e.target.closest("button.del");
+    var saveBtn = e.target.closest("button.save");
+    var cancelBtn = e.target.closest("button.cancel");
+    if(editBtn){
+      returnsEditingCode = editBtn.getAttribute("data-code");
+      stopPoll();
+      renderReturnsToday(returnsTodayCache);
+      return;
+    }
+    if(cancelBtn){
+      returnsEditingCode = null;
+      renderReturnsToday(returnsTodayCache);
+      if(state.tab === "returns") startPoll(loadReturnsToday);
+      return;
+    }
+    if(saveBtn){
+      var tr = saveBtn.closest("tr");
+      var code = tr.getAttribute("data-code");
+      var hasProblem = tr.querySelector(".e-hasproblem").checked;
+      var fields = {
+        platform: tr.querySelector(".e-platform").value,
+        return_type: tr.querySelector(".e-rtype").value,
+        has_problem: hasProblem,
+        problem_type: hasProblem ? tr.querySelector(".e-problem-type").value : null,
+        complaint_status: hasProblem ? "pending" : "none"
+      };
+      saveBtn.disabled = true; saveBtn.textContent = "Đang lưu…";
+      patchByCode(T_RETURNS, code, fields).then(function(){
+        returnsEditingCode = null;
+        if(state.tab === "returns") startPoll(loadReturnsToday);
+        loadReturnsToday();
+      }).catch(function(err){
+        saveBtn.disabled = false; saveBtn.textContent = "Lưu";
+        console.error(err);
+        alert("Lưu thất bại, thử lại.");
+      });
+      return;
+    }
+    if(delBtn){
+      var code2 = delBtn.getAttribute("data-code");
+      if(!confirm('Xoá hẳn đơn "'+code2+'" khỏi danh sách đã tích? Thao tác này không hoàn tác được.')) return;
+      delBtn.disabled = true; delBtn.textContent = "Đang xoá…";
+      deleteByCode(T_RETURNS, code2).then(function(){
+        returnsEditingCode = null;
+        loadReturnsToday();
+      }).catch(function(err){
+        delBtn.disabled = false; delBtn.textContent = "Xoá";
+        console.error(err);
+        alert("Xoá thất bại, thử lại.");
+      });
+    }
+  });
+
+  function showToast(elId, cls, msg){
+    var el = $(elId);
+    el.className = "toast " + cls;
+    el.textContent = msg;
+    clearTimeout(el._t);
+    el._t = setTimeout(function(){ el.className = "toast"; }, cls === "dup" ? 5000 : 3200);
+  }
+
+  function submitReturn(){
+    var codeInput = $("returns-code");
+    var code = codeInput.value.trim();
+    if(!code) return;
+    if(!state.connected){ showToast("returns-toast","err","Chưa kết nối được dữ liệu, thử lại sau."); return; }
+    if(!state.staffName){ showToast("returns-toast","err","Nhập tên nhân viên ở góc trên trước đã."); staffInput.focus(); return; }
+
+    var rtype = state.returnsRtype;
+    var hasProblem = rtype === "doi_tra" && returnsProblemToggle.checked;
+    var problemType = $("returns-problem-type").value;
+    var platform = state.returnsPlatform;
+    if(!platform){ showToast("returns-toast","err","Chưa nhận diện được sàn qua mã này — kiểm tra lại mã vận đơn."); return; }
+
+    $("returns-submit").disabled = true;
+    insertRow(T_RETURNS, {
+      code: code, platform: platform, staff: state.staffName, scan_date: todayStr(),
+      return_type: rtype,
+      has_problem: hasProblem, problem_type: hasProblem ? problemType : null,
+      note: "",
+      complaint_status: hasProblem ? "pending" : "none"
+    }).then(function(res){
+      $("returns-submit").disabled = false;
+      if(res.dup){
+        showToast("returns-toast","dup","Mã "+code+" đã được tích rồi (trùng mã vận đơn) — xem dòng vàng bên bảng.");
+        returnsLastCode = code;
+        loadReturnsToday();
+      } else {
+        showToast("returns-toast","ok","Đã tích đơn hoàn "+code+" — "+RTYPE_LABELS[rtype]+".");
+        loadReturnsToday();
+      }
+      codeInput.value = "";
+      returnsProblemToggle.checked = false;
+      returnsProblemBox.classList.remove("show");
+      $("returns-platform-badge").innerHTML = '<span class="sw" style="width:8px;height:8px;border-radius:50%;background:var(--ink-3);display:inline-block;"></span> Chưa nhận diện được sàn — quét hoặc gõ mã vào ô trên';
+      state.returnsPlatform = null;
+      codeInput.focus();
+    }, function(err){
+      $("returns-submit").disabled = false;
+      showToast("returns-toast","err","Có lỗi khi lưu, thử lại.");
+      console.error(err);
+    });
+  }
+  $("returns-submit").addEventListener("click", submitReturn);
+  $("returns-code").addEventListener("keydown", function(e){ if(e.key === "Enter"){ e.preventDefault(); submitReturn(); } });
+
+  /* ================= 2. OUTBOUND TAB ================= */
+  function loadOutboundToday(){
+    sbGet(T_OUTBOUND+"?scan_date=eq."+todayStr()+"&order=scanned_at.desc").then(renderOutboundToday).catch(function(){});
+  }
+  var outboundLastCode = null;
+  function renderOutboundToday(rows){
+    var body = $("outbound-today-body");
+    if(!rows.length){
+      body.innerHTML = '<tr class="empty-row"><td colspan="2">Chưa có đơn gửi đi nào được tích hôm nay.</td></tr>';
+    } else {
+      var groups = groupByDate(rows);
+      body.innerHTML = groups.map(function(g){
+        var head = '<tr class="day-group-row"><td colspan="2">'+dayLabel(g.date)+'<span class="day-count">· '+g.items.length+' đơn</span></td></tr>';
+        var itemsHtml = g.items.map(function(e){
+          return '<tr data-code="'+escapeHtml(e.code)+'">' +
+            '<td class="mono"><span class="sw" style="width:8px;height:8px;border-radius:50%;background:var(--'+e.platform+');display:inline-block;margin-right:6px;"></span>'+escapeHtml(e.code)+'</td>' +
+            '<td class="tabular">'+fmtTime(e.scanned_at)+'</td>' +
+          '</tr>';
+        }).join("");
+        return head + itemsHtml;
+      }).join("");
+    }
+    var c = { tiktok:0, shopee:0 };
+    rows.forEach(function(e){ if(c[e.platform] !== undefined) c[e.platform]++; });
+    $("outbound-count-tiktok").textContent = "TikTok: "+c.tiktok;
+    $("outbound-count-shopee").textContent = "Shopee: "+c.shopee;
+    if(outboundLastCode){
+      var tr = body.querySelector('tr[data-code="'+CSS.escape(outboundLastCode)+'"]');
+      if(tr){ tr.classList.remove("flash"); void tr.offsetWidth; tr.classList.add("flash"); }
+      outboundLastCode = null;
+    }
+  }
+  function submitOutbound(){
+    var codeInput = $("outbound-code");
+    var code = codeInput.value.trim();
+    if(!code) return;
+    if(!state.connected){ showToast("outbound-toast","err","Chưa kết nối được dữ liệu, thử lại sau."); return; }
+    if(!state.staffName){ showToast("outbound-toast","err","Nhập tên nhân viên ở góc trên trước đã."); staffInput.focus(); return; }
+    if(!state.outboundPlatform){ showToast("outbound-toast","err","Chưa nhận diện được sàn qua mã này — kiểm tra lại mã vận đơn."); return; }
+    var platform = state.outboundPlatform;
+    insertRow(T_OUTBOUND, { code: code, platform: platform, staff: state.staffName, scan_date: todayStr() }).then(function(res){
+      if(res.dup){
+        showToast("outbound-toast","dup","Mã "+code+" đã được tích rồi (trùng mã vận đơn) — xem dòng vàng bên bảng.");
+        outboundLastCode = code;
+      } else {
+        showToast("outbound-toast","ok","Đã tích đơn gửi đi "+code+".");
+      }
+      codeInput.value = "";
+      state.outboundPlatform = null;
+      $("outbound-platform-badge").innerHTML = '<span class="sw" style="width:8px;height:8px;border-radius:50%;background:var(--ink-3);display:inline-block;"></span> Chưa nhận diện được sàn — quét hoặc gõ mã vào ô trên';
+      codeInput.focus();
+      loadOutboundToday();
+    }, function(err){
+      showToast("outbound-toast","err","Có lỗi khi lưu, thử lại.");
+      console.error(err);
+    });
+  }
+  $("outbound-code").addEventListener("keydown", function(e){ if(e.key === "Enter"){ e.preventDefault(); submitOutbound(); } });
+
+  /* ---------------- quét mã bằng camera điện thoại (dự phòng khi máy quét hỏng) ---------------- */
+  var scannerState = { stream: null, rafId: null, active: false };
+  function closeScanner(){
+    scannerState.active = false;
+    if(scannerState.rafId) cancelAnimationFrame(scannerState.rafId);
+    if(scannerState.stream) scannerState.stream.getTracks().forEach(function(t){ t.stop(); });
+    scannerState.stream = null;
+    $("scan-video").srcObject = null;
+    $("scan-modal").hidden = true;
+  }
+  function openScanner(){
+    if(!("BarcodeDetector" in window)){
+      showToast("outbound-toast","err","Trình duyệt/điện thoại này chưa hỗ trợ quét bằng camera — dùng máy quét mã vạch hoặc nhập tay mã đơn.");
+      return;
+    }
+    var video = $("scan-video");
+    var statusEl = $("scan-modal-status");
+    $("scan-modal").hidden = false;
+    statusEl.textContent = "Đang mở camera…";
+    scannerState.active = true;
+    var detector;
+    try { detector = new BarcodeDetector({ formats: ["qr_code","code_128","code_39","code_93","ean_13","ean_8","itf","upc_a","upc_e","codabar"] }); }
+    catch(e){ detector = new BarcodeDetector(); }
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false }).then(function(stream){
+      if(!scannerState.active){ stream.getTracks().forEach(function(t){ t.stop(); }); return; }
+      scannerState.stream = stream;
+      video.srcObject = stream;
+      video.play();
+      statusEl.textContent = "Đưa mã vạch / QR vào giữa khung hình…";
+      var tick = function(){
+        if(!scannerState.active) return;
+        detector.detect(video).then(function(codes){
+          if(!scannerState.active) return;
+          var val = codes && codes.length ? String(codes[0].rawValue || "").trim() : "";
+          if(val){
+            closeScanner();
+            var input = $("outbound-code");
+            input.value = val;
+            input.dispatchEvent(new Event("input"));
+            submitOutbound();
+            return;
+          }
+          scannerState.rafId = requestAnimationFrame(tick);
+        }).catch(function(){
+          scannerState.rafId = requestAnimationFrame(tick);
+        });
+      };
+      scannerState.rafId = requestAnimationFrame(tick);
+    }).catch(function(err){
+      statusEl.textContent = "Không mở được camera — kiểm tra quyền truy cập camera cho trình duyệt.";
+      console.error(err);
+    });
+  }
+  $("outbound-scan-btn").addEventListener("click", openScanner);
+  $("scan-modal-close").addEventListener("click", closeScanner);
+
+  /* ================= ĐỐI CHIẾU TỰ ĐỘNG (chạy ngầm, không có tab riêng) =================
+     Gộp RECON_PERIODS kỳ báo cáo gần nhất từ monthly_reports.data.hoanVeKhoDetail, so với
+     warehouse_return_checks theo mã vận đơn (maVanDon) — nếu không có thì theo mã đơn hàng (oid).
+     Khớp được -> đánh dấu matched_in_platform_file + xoá khỏi bảng theo dõi.
+     Sàn báo mà kho chưa nhận -> đảm bảo có dòng trạng thái "pending" (không đè trạng thái đã có).
+     Trả về luôn khoảng ngày (rangeStart..rangeEnd) mà các kỳ báo cáo đã gộp bao phủ, để loadDashboard()
+     dùng tìm "đơn thừa" (kho có nhưng sàn không báo trong đúng khoảng đã đối chiếu này). */
+  function runSilentReconcile(){
+    return fetchRecentReports(RECON_PERIODS).then(function(reports){
+      var range = null;
+      if(reports.length){
+        var starts = reports.map(function(r){ return r.period_start; }).filter(Boolean);
+        var ends = reports.map(function(r){ return r.period_end; }).filter(Boolean);
+        if(starts.length && ends.length){
+          range = {
+            start: starts.reduce(function(a,b){ return a < b ? a : b; }),
+            end: ends.reduce(function(a,b){ return a > b ? a : b; })
+          };
+        }
+      }
+      var platforms = ["tiktok","shopee"];
+      return Promise.all(platforms.map(function(platform){
+        var sanPham = PLATFORM_TO_SANPHAM[platform];
+        return sbGet(T_RETURNS+"?platform=eq."+platform+"&select=code,oid").then(function(whRows){
+          var byCode = {}, byOid = {};
+          whRows.forEach(function(r){ byCode[r.code] = r; if(r.oid) byOid[r.oid] = r; });
+          var plEntries = [];
+          reports.forEach(function(r){ (r.hoanVeKhoDetail||[]).forEach(function(e){ if(e.sanPham === sanPham) plEntries.push(e); }); });
+
+          var matchedCodes = [], matchedKeys = [], pendingInserts = [];
+          plEntries.forEach(function(e){
+            var whRow = e.maVanDon ? byCode[e.maVanDon] : (e.oid ? byOid[e.oid] : null);
+            var matchKey = e.maVanDon || ("oid:"+e.oid);
+            if(whRow){
+              matchedCodes.push(whRow.code);
+              matchedKeys.push(matchKey);
+            } else {
+              pendingInserts.push({ platform:platform, match_key:matchKey, match_type: e.maVanDon?"tracking":"oid", loai:e.loai||null, status:"pending" });
+            }
+          });
+          return Promise.all([
+            markMatched(T_RETURNS, matchedCodes),
+            clearMatchRows(platform, matchedKeys),
+            ensurePendingMatchRows(pendingInserts)
+          ]);
+        });
+      })).then(function(){ return range; });
+    }).catch(function(err){ console.error("đối chiếu tự động lỗi:", err); return null; });
+  }
+
+  /* ================= 3. DASHBOARD (Tổng quan) ================= */
+  function loadDashboard(){
+    if(!state.connected) return;
+    var end = todayStr();
+    var monthStart = monthRange(thisMonthStr()).start;
+
+    var kpiGrid = $("kpi-grid");
+    kpiGrid.querySelectorAll(".val").forEach(function(v){ v.textContent = "—"; });
+
+    runSilentReconcile().then(function(reconRange){
+      var surplusQuery = reconRange
+        ? sbGet(T_RETURNS+"?matched_in_platform_file=eq.false&scan_date=gte."+reconRange.start+"&scan_date=lte."+reconRange.end+"&order=scan_date.desc&limit=300&select=code,platform,return_type,scan_date")
+        : Promise.resolve([]);
+      return Promise.all([
+        sbGet(T_RETURNS+"?scan_date=gte."+monthStart+"&scan_date=lte."+end+"&select=platform"),
+        sbGet(T_OUTBOUND+"?scan_date=gte."+monthStart+"&scan_date=lte."+end+"&select=platform"),
+        sbGet(T_RETURNS+"?has_problem=eq.true&select=complaint_status"),
+        sbGet(T_MATCH+"?status=eq.pending&select=platform,match_key,loai,updated_at&order=updated_at.asc"),
+        surplusQuery
+      ]);
+    }).then(function(results){
+      var returnsRows = results[0];
+      var outboundRows = results[1];
+      var complaintRows = results[2];
+      var outstandingRows = results[3];
+      var surplusRows = results[4];
+
+      var t = 0, s = 0;
+      returnsRows.forEach(function(e){ if(e.platform==="tiktok") t++; else if(e.platform==="shopee") s++; });
+      var openComplaints = complaintRows.filter(function(e){ return (e.complaint_status||"pending") !== "resolved"; }).length;
+
+      var kpis = [
+        { lbl:"Số đơn hoàn (tháng này)", val: returnsRows.length, foot: t+" TikTok · "+s+" Shopee" },
+        { lbl:"Số đơn đi (tháng này)", val: outboundRows.length, foot:"Tổng cả hai sàn" },
+        { lbl:"Số đơn khiếu nại", val: openComplaints, foot: openComplaints>0 ? "Chưa xử lý xong" : "Không có đơn chờ", cls: openComplaints>0 ? "warn" : "good" }
+      ];
+      kpiGrid.innerHTML = kpis.map(function(k){
+        return '<div class="kpi"><span class="lbl">'+k.lbl+'</span><span class="val tabular">'+k.val+'</span><span class="foot '+(k.cls||"")+'">'+k.foot+'</span></div>';
+      }).join("");
+
+      renderDashOutstanding(outstandingRows);
+      renderDashSurplus(surplusRows);
+      updateListsBadge();
+    }).catch(function(err){ console.error("dashboard load error", err); });
+  }
+  function renderDashOutstanding(outstandingRows){
+    $("dash-outstanding-count").textContent = outstandingRows.length + " đơn";
+    var el = $("dash-outstanding");
+    if(outstandingRows.length === 0){
+      el.innerHTML = '<div class="empty-state"><b>Không có đơn tồn đọng</b>Mọi đơn hoàn sàn báo đều đã khớp với kho.</div>';
+      return;
+    }
+    el.innerHTML = outstandingRows.map(function(it){
+      var key = it.match_key.indexOf("oid:")===0 ? it.match_key.slice(4) : it.match_key;
+      return '<div class="list-item" data-key="'+escapeHtml(it.match_key)+'" data-platform="'+it.platform+'">' +
+        '<span class="lcode mono">'+escapeHtml(key)+'</span>' +
+        '<span class="lmeta">' +
+          '<span class="pill pill-'+it.platform+'">'+PLATFORMS[it.platform]+'</span>' +
+          '<span>'+escapeHtml(it.loai||"")+'</span>' +
+          '<select class="status-sel dash-status pending">' +
+            ["pending","resolved","lost"].map(function(s){ return '<option value="'+s+'">'+STATUS_LABELS[s]+'</option>'; }).join("") +
+          '</select>' +
+        '</span></div>';
+    }).join("");
+    el.querySelectorAll(".dash-status").forEach(function(sel){
+      sel.addEventListener("change", function(){
+        var row = sel.closest(".list-item");
+        var platform = row.getAttribute("data-platform");
+        var key = row.getAttribute("data-key");
+        sel.disabled = true;
+        setMatchStatus(platform, key, sel.value).then(function(){
+          row.remove();
+          $("dash-outstanding-count").textContent = $("dash-outstanding").children.length + " đơn";
+          if($("dash-outstanding").children.length === 0){
+            $("dash-outstanding").innerHTML = '<div class="empty-state"><b>Không có đơn tồn đọng</b>Mọi đơn hoàn sàn báo đều đã khớp với kho.</div>';
+          }
+        }, function(){ sel.disabled = false; });
+      });
+    });
+  }
+  // "Thừa": kho đã tích nhận nhưng không có trong dữ liệu sàn báo hoàn, trong đúng khoảng ngày
+  // mà các kỳ báo cáo vừa gộp đã bao phủ (loại trừ đơn quá mới, sàn chưa kịp báo).
+  function renderDashSurplus(surplusRows){
+    $("dash-surplus-count").textContent = surplusRows.length + " đơn";
+    var el = $("dash-surplus");
+    if(surplusRows.length === 0){
+      el.innerHTML = '<div class="empty-state"><b>Không có đơn thừa</b>Mọi đơn kho đã nhận đều có trong dữ liệu sàn báo hoàn.</div>';
+      return;
+    }
+    el.innerHTML = surplusRows.map(function(e){
+      return '<div class="list-item">' +
+        '<span class="lcode mono">'+escapeHtml(e.code)+'</span>' +
+        '<span class="lmeta">' +
+          '<span class="pill pill-'+e.platform+'">'+PLATFORMS[e.platform]+'</span>' +
+          '<span class="pill pill-'+(e.return_type||"doi_tra")+'">'+(RTYPE_LABELS[e.return_type]||"—")+'</span>' +
+          '<span style="color:var(--ink-3);">'+fmtDate(e.scan_date)+'</span>' +
+        '</span></div>';
+    }).join("") + '<button type="button" class="btn ghost small" id="dash-surplus-jump" style="margin-top:10px;">Xem &amp; sửa ở mục 4. Danh sách →</button>';
+    var jumpBtn = $("dash-surplus-jump");
+    if(jumpBtn) jumpBtn.addEventListener("click", jumpToUnmatchedReturns);
+  }
+  function jumpToUnmatchedReturns(){
+    state.listsType = "returns";
+    $("lists-type-seg").querySelectorAll("button").forEach(function(b){ b.classList.toggle("on", b.getAttribute("data-v")==="returns"); });
+    $("lists-returns-view").hidden = false;
+    $("lists-outbound-view").hidden = true;
+    $("review-match-filter").value = "unmatched";
+    setTab("lists");
+  }
+
+  /* ================= 4. LISTS (Danh sách) ================= */
+  ["review-type-filter","review-match-filter"].forEach(function(id){ $(id).addEventListener("change", loadListsReturns); });
+  $("review-problem-only").addEventListener("change", loadListsReturns);
+  $("review-refresh").addEventListener("click", loadListsReturns);
+  $("review-export").addEventListener("click", exportMonthlyReturns);
+  wireRangeMonthToggle("review-range", "review-month", loadListsReturns);
+  $("outlist-refresh").addEventListener("click", loadListsOutbound);
+  $("outlist-search").addEventListener("input", renderListsOutbound);
+  wireRangeMonthToggle("outlist-range", "outlist-month", loadListsOutbound);
+
+  function loadLists(){
+    if(state.listsType === "outbound") loadListsOutbound(); else loadListsReturns();
+  }
+
+  // Tải thư viện xuất Excel (SheetJS) chỉ khi thật sự bấm Xuất Excel — tránh nặng trang cho mọi lần mở web.
+  var xlsxLoadPromise = null;
+  function loadXlsxLib(){
+    if(window.XLSX) return Promise.resolve();
+    if(xlsxLoadPromise) return xlsxLoadPromise;
+    xlsxLoadPromise = new Promise(function(resolve, reject){
+      var s = document.createElement("script");
+      s.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+      s.onload = function(){ resolve(); };
+      s.onerror = function(){ xlsxLoadPromise = null; reject(new Error("Không tải được thư viện xuất Excel — kiểm tra mạng rồi thử lại.")); };
+      document.head.appendChild(s);
+    });
+    return xlsxLoadPromise;
+  }
+  // Xuất toàn bộ đơn hoàn trong khoảng đang chọn ở bộ lọc (không áp bộ lọc loại/khớp sàn/vấn đề —
+  // mục đích là tổng hợp đầy đủ cuối tháng để gửi đối chiếu, không phải xem lọc theo màn hình).
+  function exportMonthlyReturns(){
+    var btn = $("review-export");
+    var range = rangeFromSelect($("review-range").value, $("review-month").value);
+    btn.disabled = true; btn.textContent = "Đang xuất…";
+    loadXlsxLib().then(function(){
+      return sbGet(T_RETURNS+"?scan_date=gte."+range.start+"&scan_date=lte."+range.end+"&order=scan_date.asc,scanned_at.asc&limit=5000");
+    }).then(function(rows){
+      var header = ["Mã vận đơn","Sàn","Loại đơn hoàn","Ngày nhận","Giờ nhận","Người tích","Có vấn đề","Lý do vấn đề",
+        "SKU","Số lượng","Danh mục trả","Tình trạng đơn","Lý do trả","Khớp dữ liệu sàn","Trạng thái khiếu nại"];
+      var data = rows.map(function(e){
+        return [
+          e.code, PLATFORMS[e.platform] || e.platform, RTYPE_LABELS[e.return_type] || e.return_type,
+          fmtDate(e.scan_date), fmtTime(e.scanned_at), e.staff || "",
+          e.has_problem ? "Có" : "Không", e.has_problem ? (PROBLEM_LABELS[e.problem_type] || "") : "",
+          e.sku || "", e.quantity != null ? e.quantity : "", e.return_category || "", e.order_status || "", e.return_reason || "",
+          e.matched_in_platform_file ? "Đã khớp" : "Chưa khớp",
+          STATUS_LABELS[e.complaint_status || "none"] || ""
+        ];
+      });
+      var ws = XLSX.utils.aoa_to_sheet([header].concat(data));
+      ws["!cols"] = header.map(function(){ return { wch: 16 }; });
+      var wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Don hoan");
+      XLSX.writeFile(wb, "so-kho-don-hoan_" + range.start + "_den_" + range.end + ".xlsx");
+    }).catch(function(err){
+      console.error(err);
+      alert("Xuất file thất bại — " + (err && err.message ? err.message : "thử lại sau."));
+    }).then(function(){
+      btn.disabled = false; btn.textContent = "⬇ Xuất Excel";
+    });
+  }
+
+  function loadListsReturns(){
+    var body = $("review-body");
+    body.innerHTML = '<tr class="empty-row"><td colspan="11">Đang tải…</td></tr>';
+    var range = rangeFromSelect($("review-range").value, $("review-month").value);
+    var typeFilter = $("review-type-filter").value;
+    var q = T_RETURNS+"?scan_date=gte."+range.start+"&scan_date=lte."+range.end+"&order=scan_date.desc,scanned_at.desc&limit=500";
+    if(typeFilter !== "all") q += "&return_type=eq."+typeFilter;
+    sbGet(q).then(function(rows){
+      var matchFilter = $("review-match-filter").value;
+      var problemOnly = $("review-problem-only").checked;
+      var filtered = rows.filter(function(e){
+        if(matchFilter === "matched" && !e.matched_in_platform_file) return false;
+        if(matchFilter === "unmatched" && e.matched_in_platform_file) return false;
+        if(problemOnly && !e.has_problem) return false;
+        return true;
+      });
+      renderListsReturns(filtered);
+      updateListsBadge();
+    }).catch(function(err){
+      body.innerHTML = '<tr class="empty-row"><td colspan="11">Không tải được dữ liệu.</td></tr>';
+      console.error(err);
+    });
+  }
+  function renderListsReturns(rows){
+    var body = $("review-body");
+    if(!rows.length){ body.innerHTML = '<tr class="empty-row"><td colspan="11">Không có đơn nào phù hợp bộ lọc.</td></tr>'; return; }
+    var groups = groupByDate(rows);
+    body.innerHTML = groups.map(function(g){
+      var head = '<tr class="day-group-row"><td colspan="11">'+dayLabel(g.date)+'<span class="day-count">· '+g.items.length+' đơn</span></td></tr>';
+      var itemsHtml = g.items.map(function(e){
+        var isDoiTra = (e.return_type || "doi_tra") === "doi_tra";
+        var matchedBadge = e.matched_in_platform_file
+          ? '<span class="badge matched">Đã khớp</span>' : '<span class="badge unmatched">Chưa khớp</span>';
+        var complaintSel = e.has_problem
+          ? '<select class="status-sel review-complaint" data-code="'+escapeHtml(e.code)+'">' +
+              ["pending","submitted","resolved"].map(function(s){
+                return '<option value="'+s+'"'+((e.complaint_status||"pending")===s?" selected":"")+'>'+STATUS_LABELS[s]+'</option>';
+              }).join("") +
+            '</select>'
+          : '<span style="color:var(--ink-3);">—</span>';
+        if(!isDoiTra){
+          return '<tr data-code="'+escapeHtml(e.code)+'">' +
+            '<td class="mono">'+escapeHtml(e.code)+'</td>' +
+            '<td><span class="pill pill-'+e.platform+'">'+PLATFORMS[e.platform]+'</span></td>' +
+            '<td><span class="pill pill-boom">'+RTYPE_LABELS.boom+'</span></td>' +
+            '<td colspan="5" style="color:var(--ink-3);">Không cần kiểm — đã lên kệ</td>' +
+            '<td>'+matchedBadge+'</td>' +
+            '<td class="review-cell">'+complaintSel+'</td>' +
+            '<td></td>' +
+          '</tr>';
+        }
+        return '<tr class="'+(e.has_problem?"problem-row":"")+'" data-code="'+escapeHtml(e.code)+'">' +
+          '<td class="mono">'+escapeHtml(e.code)+'</td>' +
+          '<td><span class="pill pill-'+e.platform+'">'+PLATFORMS[e.platform]+'</span></td>' +
+          '<td><span class="pill pill-doi_tra">'+RTYPE_LABELS.doi_tra+'</span></td>' +
+          '<td class="review-cell"><input class="review-input wide r-sku" type="text" value="'+escapeHtml(e.sku||"")+'" placeholder="SKU"></td>' +
+          '<td class="review-cell"><input class="review-input r-qty" type="number" min="0" value="'+(e.quantity!=null?e.quantity:"")+'" placeholder="SL"></td>' +
+          '<td class="review-cell"><input class="review-input wide r-cat" type="text" value="'+escapeHtml(e.return_category||"")+'" placeholder="Danh mục"></td>' +
+          '<td class="review-cell"><input class="review-input wide r-status" type="text" value="'+escapeHtml(e.order_status||"")+'" placeholder="Nguyên vẹn…"></td>' +
+          '<td class="review-cell"><input class="review-input wide r-reason" type="text" value="'+escapeHtml(e.return_reason||"")+'" placeholder="Lý do trả"></td>' +
+          '<td>'+matchedBadge+'</td>' +
+          '<td class="review-cell">'+complaintSel+'</td>' +
+          '<td><button class="review-save" data-code="'+escapeHtml(e.code)+'">Lưu</button></td>' +
+        '</tr>';
+      }).join("");
+      return head + itemsHtml;
+    }).join("");
+
+    body.querySelectorAll(".review-save").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var tr = btn.closest("tr");
+        var code = btn.getAttribute("data-code");
+        var qtyVal = tr.querySelector(".r-qty").value;
+        var fields = {
+          sku: tr.querySelector(".r-sku").value.trim() || null,
+          quantity: qtyVal === "" ? null : +qtyVal,
+          return_category: tr.querySelector(".r-cat").value.trim() || null,
+          order_status: tr.querySelector(".r-status").value.trim() || null,
+          return_reason: tr.querySelector(".r-reason").value.trim() || null
+        };
+        var complaintSel = tr.querySelector(".review-complaint");
+        if(complaintSel) fields.complaint_status = complaintSel.value;
+        btn.disabled = true; btn.textContent = "Đang lưu…";
+        patchByCode(T_RETURNS, code, fields).then(function(){
+          btn.textContent = "Đã lưu"; btn.classList.add("saved");
+          setTimeout(function(){ btn.disabled = false; btn.textContent = "Lưu"; btn.classList.remove("saved"); }, 1500);
+          updateListsBadge();
+        }).catch(function(err){
+          btn.disabled = false; btn.textContent = "Lưu";
+          console.error(err);
+          alert("Lưu thất bại, thử lại.");
+        });
+      });
+    });
+  }
+  function updateListsBadge(){
+    var range = monthRange(thisMonthStr());
+    sbGet(T_RETURNS+"?return_type=eq.doi_tra&sku=is.null&scan_date=gte."+range.start+"&scan_date=lte."+range.end+"&select=id").then(function(rows){
+      var badge = $("lists-badge");
+      if(rows.length > 0){ badge.hidden = false; badge.textContent = rows.length; } else { badge.hidden = true; }
+    }).catch(function(){});
+  }
+
+  var outlistCache = { rows: [], days: [] };
+  function loadListsOutbound(){
+    var grid = $("outlist-daygrid");
+    grid.innerHTML = '<div class="empty-state">Đang tải…</div>';
+    var range = rangeFromSelect($("outlist-range").value, $("outlist-month").value);
+    sbGet(T_OUTBOUND+"?scan_date=gte."+range.start+"&scan_date=lte."+range.end+"&order=scanned_at.asc&limit=2000").then(function(rows){
+      outlistCache.rows = rows;
+      outlistCache.days = daysInRange(range.start, range.end);
+      renderListsOutbound();
+    }).catch(function(err){
+      grid.innerHTML = '<div class="empty-state">Không tải được dữ liệu.</div>';
+      console.error(err);
+    });
+  }
+  // Vẽ lại lưới từ dữ liệu đã tải (outlistCache) — dùng chung cho lần tải đầu và mỗi khi gõ ô tìm mã.
+  function renderListsOutbound(){
+    var grid = $("outlist-daygrid");
+    var q = ($("outlist-search").value || "").trim().toLowerCase();
+    var byDate = {};
+    outlistCache.rows.forEach(function(e){
+      if(q && e.code.toLowerCase().indexOf(q) === -1) return;
+      (byDate[e.scan_date] = byDate[e.scan_date] || []).push(e);
+    });
+    var today = todayStr();
+    var days = q ? outlistCache.days.filter(function(d){ return (byDate[d] || []).length > 0; }) : outlistCache.days;
+    if(q && !days.length){
+      grid.innerHTML = '<div class="empty-state">Không tìm thấy mã đơn nào khớp “'+escapeHtml($("outlist-search").value.trim())+'”.</div>';
+      return;
+    }
+    grid.innerHTML = days.map(function(d){
+      var items = byDate[d] || [];
+      var body = items.length
+        ? items.map(function(e){
+            return '<div class="dcell p-'+e.platform+'"><span class="c">'+escapeHtml(e.code)+'</span><span class="m">'+fmtTime(e.scanned_at)+'</span></div>';
+          }).join("")
+        : '<div class="db-empty">—</div>';
+      return '<div class="daycol'+(d===today?" today":"")+'">' +
+        '<div class="dh">'+fmtDayShort(d)+'<span class="n">'+items.length+'</span></div>' +
+        '<div class="db">'+body+'</div>' +
+      '</div>';
+    }).join("");
+    if(!q){
+      var todayCol = grid.querySelector(".daycol.today");
+      if(todayCol) todayCol.scrollIntoView({ inline: "end", block: "nearest" });
+    }
+  }
+
+  /* ---------------- init ---------------- */
+  setTab("returns");
+  initConn();
+})();
+</script>
+</body>
+</html>
