@@ -14,6 +14,9 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<!-- Thư viện quét mã vạch/QR chạy trên mọi trình duyệt (kể cả Safari/iPhone) — không phụ thuộc
+     API BarcodeDetector của Chrome Android (nhiều máy không có API này). -->
+<script src="https://cdn.jsdelivr.net/npm/@zxing/browser@0.2.1/umd/zxing-browser.min.js"></script>
 <style>
   :root{
     --bg:#f7f5f0; --surface:#ffffff; --surface-2:#fbfaf6; --surface-3:#f0eee7;
@@ -1059,19 +1062,25 @@
   }
   $("outbound-code").addEventListener("keydown", function(e){ if(e.key === "Enter"){ e.preventDefault(); submitOutbound(); } });
 
-  /* ---------------- quét mã bằng camera điện thoại (dự phòng khi máy quét hỏng) ---------------- */
-  var scannerState = { stream: null, rafId: null, active: false };
+  /* ---------------- quét mã bằng camera điện thoại (dự phòng khi máy quét hỏng) ----------------
+     Dùng thư viện ZXing (chạy hoàn toàn bằng JS, xử lý qua canvas) thay vì API BarcodeDetector của
+     trình duyệt — vì BarcodeDetector chỉ có trên 1 số bản Chrome Android, KHÔNG có trên Safari/iPhone,
+     nên trước đây iPhone và nhiều máy Android báo "chưa hỗ trợ quét camera". ZXing chạy được trên mọi
+     trình duyệt hiện đại (kể cả Safari/iPhone). */
+  var scannerState = { controls: null, active: false };
   function closeScanner(){
     scannerState.active = false;
-    if(scannerState.rafId) cancelAnimationFrame(scannerState.rafId);
-    if(scannerState.stream) scannerState.stream.getTracks().forEach(function(t){ t.stop(); });
-    scannerState.stream = null;
+    if(scannerState.controls){ try{ scannerState.controls.stop(); }catch(e){} scannerState.controls = null; }
     $("scan-video").srcObject = null;
     $("scan-modal").hidden = true;
   }
   function openScanner(){
-    if(!("BarcodeDetector" in window)){
-      showToast("outbound-toast","err","Trình duyệt/điện thoại này chưa hỗ trợ quét bằng camera — dùng máy quét mã vạch hoặc nhập tay mã đơn.");
+    if(!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)){
+      showToast("outbound-toast","err","Trình duyệt này không hỗ trợ mở camera — dùng máy quét mã vạch hoặc nhập tay mã đơn.");
+      return;
+    }
+    if(!(window.ZXingBrowser)){
+      showToast("outbound-toast","err","Chưa tải được thư viện quét camera (kiểm tra kết nối mạng) — dùng máy quét mã vạch hoặc nhập tay mã đơn.");
       return;
     }
     var video = $("scan-video");
@@ -1079,35 +1088,38 @@
     $("scan-modal").hidden = false;
     statusEl.textContent = "Đang mở camera…";
     scannerState.active = true;
-    var detector;
-    try { detector = new BarcodeDetector({ formats: ["qr_code","code_128","code_39","code_93","ean_13","ean_8","itf","upc_a","upc_e","codabar"] }); }
-    catch(e){ detector = new BarcodeDetector(); }
-    navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false }).then(function(stream){
-      if(!scannerState.active){ stream.getTracks().forEach(function(t){ t.stop(); }); return; }
-      scannerState.stream = stream;
-      video.srcObject = stream;
-      video.play();
-      statusEl.textContent = "Đưa mã vạch / QR vào giữa khung hình…";
-      var tick = function(){
+
+    var hints = new Map();
+    hints.set(ZXingBrowser.DecodeHintType.POSSIBLE_FORMATS, [
+      ZXingBrowser.BarcodeFormat.QR_CODE, ZXingBrowser.BarcodeFormat.CODE_128,
+      ZXingBrowser.BarcodeFormat.CODE_39, ZXingBrowser.BarcodeFormat.CODE_93,
+      ZXingBrowser.BarcodeFormat.EAN_13, ZXingBrowser.BarcodeFormat.EAN_8,
+      ZXingBrowser.BarcodeFormat.ITF, ZXingBrowser.BarcodeFormat.UPC_A,
+      ZXingBrowser.BarcodeFormat.UPC_E, ZXingBrowser.BarcodeFormat.CODABAR
+    ]);
+    hints.set(ZXingBrowser.DecodeHintType.TRY_HARDER, true);
+    var reader = new ZXingBrowser.BrowserMultiFormatReader(hints);
+
+    reader.decodeFromConstraints(
+      { video: { facingMode: { ideal: "environment" } }, audio: false },
+      video,
+      function(result, err, controls){
         if(!scannerState.active) return;
-        detector.detect(video).then(function(codes){
-          if(!scannerState.active) return;
-          var val = codes && codes.length ? String(codes[0].rawValue || "").trim() : "";
+        scannerState.controls = controls;
+        if(statusEl.textContent === "Đang mở camera…") statusEl.textContent = "Đưa mã vạch / QR vào giữa khung hình…";
+        if(result){
+          var val = String(result.getText() || "").trim();
           if(val){
             closeScanner();
             var input = $("outbound-code");
             input.value = val;
             input.dispatchEvent(new Event("input"));
             submitOutbound();
-            return;
           }
-          scannerState.rafId = requestAnimationFrame(tick);
-        }).catch(function(){
-          scannerState.rafId = requestAnimationFrame(tick);
-        });
-      };
-      scannerState.rafId = requestAnimationFrame(tick);
-    }).catch(function(err){
+        }
+        // err bắn liên tục mỗi khung hình không đọc được mã — bỏ qua, không phải lỗi thật.
+      }
+    ).catch(function(err){
       statusEl.textContent = "Không mở được camera — kiểm tra quyền truy cập camera cho trình duyệt.";
       console.error(err);
     });
