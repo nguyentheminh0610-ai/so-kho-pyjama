@@ -395,10 +395,11 @@
             <span class="count-chip" id="outbound-count-shopee">Shopee: 0</span>
           </div>
         </div>
+        <p class="hint" style="margin:0 0 10px;">Tích nhầm thì bấm <b>Xoá</b> ngay trên dòng đó.</p>
         <div class="twrap">
           <table>
-            <thead><tr><th>Mã vận đơn</th><th>Giờ</th></tr></thead>
-            <tbody id="outbound-today-body"><tr class="empty-row"><td colspan="2">Chưa có đơn gửi đi nào được tích hôm nay.</td></tr></tbody>
+            <thead><tr><th>Mã vận đơn</th><th>Giờ</th><th></th></tr></thead>
+            <tbody id="outbound-today-body"><tr class="empty-row"><td colspan="3">Chưa có đơn gửi đi nào được tích hôm nay.</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -1083,22 +1084,27 @@
   $("returns-code").addEventListener("keydown", function(e){ if(e.key === "Enter"){ e.preventDefault(); submitReturn(); } });
 
   /* ================= 2. OUTBOUND TAB ================= */
+  var outboundTodayCache = [];
   function loadOutboundToday(){
-    sbGet(T_OUTBOUND+"?scan_date=eq."+todayStr()+"&order=scanned_at.desc").then(renderOutboundToday).catch(function(){});
+    sbGet(T_OUTBOUND+"?scan_date=eq."+todayStr()+"&order=scanned_at.desc").then(function(rows){
+      outboundTodayCache = rows;
+      renderOutboundToday(rows);
+    }).catch(function(){});
   }
   var outboundLastCode = null;
   function renderOutboundToday(rows){
     var body = $("outbound-today-body");
     if(!rows.length){
-      body.innerHTML = '<tr class="empty-row"><td colspan="2">Chưa có đơn gửi đi nào được tích hôm nay.</td></tr>';
+      body.innerHTML = '<tr class="empty-row"><td colspan="3">Chưa có đơn gửi đi nào được tích hôm nay.</td></tr>';
     } else {
       var groups = groupByDate(rows);
       body.innerHTML = groups.map(function(g){
-        var head = '<tr class="day-group-row"><td colspan="2">'+dayLabel(g.date)+'<span class="day-count">· '+g.items.length+' đơn</span></td></tr>';
+        var head = '<tr class="day-group-row"><td colspan="3">'+dayLabel(g.date)+'<span class="day-count">· '+g.items.length+' đơn</span></td></tr>';
         var itemsHtml = g.items.map(function(e){
           return '<tr data-code="'+escapeHtml(e.code)+'">' +
             '<td class="mono"><span class="sw" style="width:8px;height:8px;border-radius:50%;background:var(--'+e.platform+');display:inline-block;margin-right:6px;"></span>'+escapeHtml(e.code)+'</td>' +
             '<td class="tabular">'+fmtTime(e.scanned_at)+'</td>' +
+            '<td class="row-actions"><button type="button" class="del" data-code="'+escapeHtml(e.code)+'">Xoá</button></td>' +
           '</tr>';
         }).join("");
         return head + itemsHtml;
@@ -1114,6 +1120,39 @@
       outboundLastCode = null;
     }
   }
+  $("outbound-today-body").addEventListener("click", function(e){
+    var delBtn = e.target.closest("button.del");
+    if(!delBtn) return;
+    var code = delBtn.getAttribute("data-code");
+    if(!confirm('Xoá hẳn đơn "'+code+'" khỏi danh sách đã gửi hôm nay? Thao tác này không hoàn tác được.')) return;
+    delBtn.disabled = true; delBtn.textContent = "Đang xoá…";
+    deleteByCode(T_OUTBOUND, code).then(function(){
+      loadOutboundToday();
+    }).catch(function(err){
+      delBtn.disabled = false; delBtn.textContent = "Xoá";
+      console.error(err);
+      alert("Xoá thất bại, thử lại.");
+    });
+  });
+
+  /* Cảnh báo đơn trùng do lỗi quét (vd "A" bị quét thừa 1 ký tự thành "Aa") — vì mã khác nhau về
+     mặt chữ nên không bị chặn bởi ràng buộc unique trong CSDL, hệ thống dễ tưởng nhầm là 2 đơn thật.
+     Trước khi lưu, so mã mới với các mã đã tích TRONG NGÀY: nếu mã mới = 1 mã cũ + đúng 1 ký tự thừa
+     ở đầu/cuối (không phân biệt hoa/thường) thì hỏi lại nhân viên trước khi lưu. */
+  function isLikelyScanGlitchDup(newCode, oldCode){
+    if(newCode === oldCode) return false;
+    var a = newCode.toLowerCase(), b = oldCode.toLowerCase();
+    if(Math.abs(a.length - b.length) !== 1) return false;
+    var longer = a.length > b.length ? a : b;
+    var shorter = a.length > b.length ? b : a;
+    return longer.indexOf(shorter) === 0 || longer.lastIndexOf(shorter) === longer.length - shorter.length;
+  }
+  function findSuspectedDupToday(code){
+    for(var i=0; i<outboundTodayCache.length; i++){
+      if(isLikelyScanGlitchDup(code, outboundTodayCache[i].code)) return outboundTodayCache[i];
+    }
+    return null;
+  }
   function submitOutbound(){
     var codeInput = $("outbound-code");
     var code = codeInput.value.trim();
@@ -1121,13 +1160,27 @@
     if(!state.connected){ showToast("outbound-toast","err","Chưa kết nối được dữ liệu, thử lại sau."); return; }
     if(!state.staffName){ showToast("outbound-toast","err","Nhập tên nhân viên ở góc trên trước đã."); staffInput.focus(); return; }
     if(!state.outboundPlatform){ showToast("outbound-toast","err","Chưa nhận diện được sàn qua mã này — kiểm tra lại mã vận đơn."); return; }
+
+    var suspect = findSuspectedDupToday(code);
+    if(suspect){
+      var ok = confirm(
+        'Mã "'+code+'" khá giống mã "'+suspect.code+'" vừa tích lúc '+fmtTime(suspect.scanned_at)+' hôm nay ' +
+        '(lệch đúng 1 ký tự) — có thể do máy quét bị lỗi quét thừa/thiếu chữ, không phải 2 đơn khác nhau.\n\n' +
+        'Bấm OK nếu chắc chắn đây là đơn khác. Bấm Huỷ để kiểm tra/quét lại mã.'
+      );
+      if(!ok){ codeInput.value = ""; codeInput.focus(); return; }
+    }
+
     var platform = state.outboundPlatform;
-    insertRow(T_OUTBOUND, { code: code, platform: platform, staff: state.staffName, scan_date: todayStr() }).then(function(res){
+    var staff = state.staffName;
+    insertRow(T_OUTBOUND, { code: code, platform: platform, staff: staff, scan_date: todayStr() }).then(function(res){
       if(res.dup){
         showToast("outbound-toast","dup","Mã "+code+" đã được tích rồi (trùng mã vận đơn) — xem dòng vàng bên bảng.");
         outboundLastCode = code;
       } else {
         showToast("outbound-toast","ok","Đã tích đơn gửi đi "+code+".");
+        // cập nhật cache ngay (không đợi reload) để lần quét tiếp theo vẫn so được với mã vừa lưu.
+        outboundTodayCache.unshift({ code: code, platform: platform, staff: staff, scan_date: todayStr(), scanned_at: new Date().toISOString() });
       }
       codeInput.value = "";
       state.outboundPlatform = null;
