@@ -87,7 +87,7 @@
     display:flex; align-items:center; justify-content:center; font-family:"Sora"; font-weight:700; font-size:15px; flex:none; }
   .brand-text h1{ font-size:16px; font-weight:700; margin:0; letter-spacing:.1px; }
   .brand-text p{ margin:0; font-size:12px; color:var(--ink-3); }
-  .staffbox{ display:flex; align-items:center; gap:8px; background:var(--surface); border:1px solid var(--border);
+  .staffbox{ position:relative; display:flex; align-items:center; gap:8px; background:var(--surface); border:1px solid var(--border);
     border-radius:999px; padding:5px 6px 5px 12px; box-shadow:var(--shadow); }
   .staffbox .dot{ width:8px; height:8px; border-radius:50%; background:var(--ink-3); flex:none; }
   .staffbox .dot.on{ background:var(--good); }
@@ -97,6 +97,19 @@
   .staffbox input:focus{ outline:none; }
   .staffbox button{ border:none; background:var(--accent-soft); color:var(--accent-soft-ink); font-size:12px; font-weight:600;
     padding:6px 11px; border-radius:999px; cursor:pointer; }
+  .staffbox .hist-toggle{ background:transparent; color:var(--ink-3); font-size:13px; padding:6px 5px; }
+  .staffbox .hist-toggle:hover{ color:var(--ink); }
+  .staff-history{ position:absolute; top:calc(100% + 6px); right:0; min-width:190px; max-width:260px;
+    background:var(--surface); border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow);
+    padding:6px; z-index:40; max-height:280px; overflow-y:auto; }
+  .staff-history .hist-empty{ padding:9px 10px; font-size:12.5px; color:var(--ink-3); }
+  .staff-history .hist-item{ display:flex; align-items:center; justify-content:space-between; gap:8px;
+    padding:8px 10px; border-radius:7px; cursor:pointer; font-size:13px; }
+  .staff-history .hist-item:hover{ background:var(--surface-3); }
+  .staff-history .hist-item .name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .staff-history .hist-item .rm{ border:none; background:transparent; color:var(--ink-3); font-size:13px;
+    line-height:1; padding:3px 6px; border-radius:6px; flex:none; }
+  .staff-history .hist-item .rm:hover{ background:var(--crit-soft); color:var(--crit-ink); }
 
   #conn-msg{ display:none; margin:0 4px 14px; padding:10px 13px; border-radius:10px; background:var(--crit-soft); color:var(--crit-ink);
     font-size:12.5px; font-weight:600; }
@@ -285,8 +298,10 @@
     <div class="staffbox">
       <span class="dot off" id="conn-dot" title="Trạng thái kết nối dữ liệu"></span>
       <span class="label">Nhân viên</span>
-      <input id="staff-input" type="text" placeholder="Tên của bạn" maxlength="40" />
+      <input id="staff-input" type="text" placeholder="Tên của bạn" maxlength="40" autocomplete="off" />
+      <button type="button" class="hist-toggle" id="staff-history-toggle" title="Chọn lại tên đã lưu trước đó">▾</button>
       <button id="staff-save">Lưu</button>
+      <div class="staff-history" id="staff-history" hidden></div>
     </div>
   </div>
 
@@ -719,12 +734,71 @@
   var $ = function(id){ return document.getElementById(id); };
   var connDot = $("conn-dot");
   var staffInput = $("staff-input");
+  var staffHistoryEl = $("staff-history");
   staffInput.value = state.staffName;
 
+  /* ---------------- sổ tên nhân viên đã lưu trên thiết bị này (không đồng bộ server) ----------------
+     "kho_staff_name" = tên đang dùng hiện tại (tự điền sẵn mỗi lần mở app, như cũ).
+     "kho_staff_names" = danh sách các tên đã từng lưu trên thiết bị này, mới dùng gần đây nhất lên đầu,
+     để bấm chọn lại nhanh thay vì gõ lại — vd nhiều nhân viên dùng chung 1 máy tính kho. */
+  var STAFF_HISTORY_KEY = "kho_staff_names";
+  var STAFF_HISTORY_MAX = 20;
+  function loadStaffHistory(){
+    try { var arr = JSON.parse(localStorage.getItem(STAFF_HISTORY_KEY) || "[]"); return Array.isArray(arr) ? arr : []; }
+    catch(e){ return []; }
+  }
+  function saveStaffHistory(arr){ localStorage.setItem(STAFF_HISTORY_KEY, JSON.stringify(arr)); }
+  function addStaffToHistory(name){
+    if(!name) return;
+    var arr = loadStaffHistory().filter(function(n){ return n.toLowerCase() !== name.toLowerCase(); });
+    arr.unshift(name);
+    if(arr.length > STAFF_HISTORY_MAX) arr = arr.slice(0, STAFF_HISTORY_MAX);
+    saveStaffHistory(arr);
+  }
+  function removeStaffFromHistory(name){
+    saveStaffHistory(loadStaffHistory().filter(function(n){ return n !== name; }));
+    renderStaffHistory();
+  }
+  function setStaffName(name){
+    state.staffName = name;
+    staffInput.value = name;
+    localStorage.setItem("kho_staff_name", name);
+    if(name) addStaffToHistory(name);
+  }
+  function renderStaffHistory(){
+    var arr = loadStaffHistory();
+    staffHistoryEl.innerHTML = arr.length
+      ? arr.map(function(n){
+          return '<div class="hist-item" data-name="'+escapeHtml(n)+'">' +
+            '<span class="name">'+escapeHtml(n)+'</span>' +
+            '<button type="button" class="rm" data-rm="'+escapeHtml(n)+'" title="Xoá tên này khỏi danh sách">✕</button>' +
+          '</div>';
+        }).join("")
+      : '<div class="hist-empty">Chưa có tên nào được lưu</div>';
+  }
+  function closeStaffHistory(){ staffHistoryEl.hidden = true; }
+  function toggleStaffHistory(){
+    if(staffHistoryEl.hidden){ renderStaffHistory(); staffHistoryEl.hidden = false; }
+    else closeStaffHistory();
+  }
+  // Nhập cũ (nếu có) từ trước khi có sổ tên -> ghi vào sổ luôn cho khỏi mất.
+  if(state.staffName && !loadStaffHistory().some(function(n){ return n.toLowerCase() === state.staffName.toLowerCase(); })){
+    addStaffToHistory(state.staffName);
+  }
+
+  $("staff-history-toggle").addEventListener("click", function(e){ e.stopPropagation(); toggleStaffHistory(); });
+  staffHistoryEl.addEventListener("click", function(e){
+    var rmBtn = e.target.closest("[data-rm]");
+    if(rmBtn){ e.stopPropagation(); removeStaffFromHistory(rmBtn.getAttribute("data-rm")); return; }
+    var item = e.target.closest(".hist-item");
+    if(item){ setStaffName(item.getAttribute("data-name")); closeStaffHistory(); }
+  });
+  document.addEventListener("click", function(e){
+    if(!staffHistoryEl.hidden && !e.target.closest(".staffbox")) closeStaffHistory();
+  });
+
   $("staff-save").addEventListener("click", function(){
-    var v = staffInput.value.trim();
-    state.staffName = v;
-    localStorage.setItem("kho_staff_name", v);
+    setStaffName(staffInput.value.trim());
     staffInput.blur();
   });
   staffInput.addEventListener("keydown", function(e){ if(e.key === "Enter"){ $("staff-save").click(); } });
