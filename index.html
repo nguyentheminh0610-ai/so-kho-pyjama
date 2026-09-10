@@ -8,8 +8,13 @@
 <link rel="manifest" href="./manifest.json" />
 <meta name="theme-color" content="#2f5d50" />
 <link rel="apple-touch-icon" href="./icon-192.png" />
-<meta name="apple-mobile-web-app-capable" content="yes" />
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<!-- KHÔNG bật apple-mobile-web-app-capable: iOS có lỗi WebKit lâu năm (chưa fix triệt để qua
+     nhiều bản iOS) khiến camera bị đen/không hiện hình khi web chạy ở chế độ "standalone" (mở
+     từ icon Màn hình chính trên iPhone) — cùng đoạn code chạy trong tab Safari bình thường thì
+     camera hoạt động tốt. Bỏ dòng này để icon "Thêm vào MH chính" trên iPhone mở bằng Safari
+     thật (có thanh địa chỉ) thay vì chế độ standalone, giúp quét camera chạy ổn định. Android
+     không bị ảnh hưởng (App Android dùng display:standalone trong manifest.json, không liên
+     quan đến meta tag này). -->
 <meta name="apple-mobile-web-app-title" content="Sổ Kho" />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
