@@ -1199,10 +1199,11 @@
      trình duyệt — vì BarcodeDetector chỉ có trên 1 số bản Chrome Android, KHÔNG có trên Safari/iPhone,
      nên trước đây iPhone và nhiều máy Android báo "chưa hỗ trợ quét camera". ZXing chạy được trên mọi
      trình duyệt hiện đại (kể cả Safari/iPhone). */
-  var scannerState = { controls: null, active: false };
+  var scannerState = { controls: null, active: false, stream: null };
   function closeScanner(){
     scannerState.active = false;
     if(scannerState.controls){ try{ scannerState.controls.stop(); }catch(e){} scannerState.controls = null; }
+    if(scannerState.stream){ try{ scannerState.stream.getTracks().forEach(function(t){ t.stop(); }); }catch(e){} scannerState.stream = null; }
     $("scan-video").srcObject = null;
     $("scan-modal").hidden = true;
   }
@@ -1221,21 +1222,30 @@
     statusEl.textContent = "Đang mở camera…";
     scannerState.active = true;
 
-    var hints = new Map();
-    hints.set(ZXingBrowser.DecodeHintType.POSSIBLE_FORMATS, [
-      ZXingBrowser.BarcodeFormat.QR_CODE, ZXingBrowser.BarcodeFormat.CODE_128,
-      ZXingBrowser.BarcodeFormat.CODE_39, ZXingBrowser.BarcodeFormat.CODE_93,
-      ZXingBrowser.BarcodeFormat.EAN_13, ZXingBrowser.BarcodeFormat.EAN_8,
-      ZXingBrowser.BarcodeFormat.ITF, ZXingBrowser.BarcodeFormat.UPC_A,
-      ZXingBrowser.BarcodeFormat.UPC_E, ZXingBrowser.BarcodeFormat.CODABAR
-    ]);
-    hints.set(ZXingBrowser.DecodeHintType.TRY_HARDER, true);
-    var reader = new ZXingBrowser.BrowserMultiFormatReader(hints);
+    /* Tự xin quyền camera & tự phát video (thay vì để ZXing tự làm hết) rồi mới đưa luồng hình vào ZXing để
+       giải mã — một số iPhone/Safari đã cấp quyền camera nhưng KHÔNG tự bật được hình nếu lệnh play() không
+       được gọi ngay lập tức, dẫn tới màn hình đen dù không báo lỗi gì. Gọi play() thủ công ở đây để tránh lỗi đó. */
+    navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false }).then(function(stream){
+      if(!scannerState.active){ stream.getTracks().forEach(function(t){ t.stop(); }); return; }
+      scannerState.stream = stream;
+      video.srcObject = stream;
+      video.muted = true;
+      video.setAttribute("autoplay", "");
+      var playPromise = video.play();
+      if(playPromise && playPromise.catch) playPromise.catch(function(){});
 
-    reader.decodeFromConstraints(
-      { video: { facingMode: { ideal: "environment" } }, audio: false },
-      video,
-      function(result, err, controls){
+      var hints = new Map();
+      hints.set(ZXingBrowser.DecodeHintType.POSSIBLE_FORMATS, [
+        ZXingBrowser.BarcodeFormat.QR_CODE, ZXingBrowser.BarcodeFormat.CODE_128,
+        ZXingBrowser.BarcodeFormat.CODE_39, ZXingBrowser.BarcodeFormat.CODE_93,
+        ZXingBrowser.BarcodeFormat.EAN_13, ZXingBrowser.BarcodeFormat.EAN_8,
+        ZXingBrowser.BarcodeFormat.ITF, ZXingBrowser.BarcodeFormat.UPC_A,
+        ZXingBrowser.BarcodeFormat.UPC_E, ZXingBrowser.BarcodeFormat.CODABAR
+      ]);
+      hints.set(ZXingBrowser.DecodeHintType.TRY_HARDER, true);
+      var reader = new ZXingBrowser.BrowserMultiFormatReader(hints);
+
+      return reader.decodeFromStream(stream, video, function(result, err, controls){
         if(!scannerState.active) return;
         scannerState.controls = controls;
         if(statusEl.textContent === "Đang mở camera…") statusEl.textContent = "Đưa mã vạch / QR vào giữa khung hình…";
@@ -1250,8 +1260,8 @@
           }
         }
         // err bắn liên tục mỗi khung hình không đọc được mã — bỏ qua, không phải lỗi thật.
-      }
-    ).catch(function(err){
+      });
+    }).catch(function(err){
       statusEl.textContent = "Không mở được camera — kiểm tra quyền truy cập camera cho trình duyệt.";
       console.error(err);
     });
