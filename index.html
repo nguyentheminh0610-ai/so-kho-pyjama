@@ -281,6 +281,9 @@
     font-weight:700; cursor:pointer; }
   .review-save[disabled]{ opacity:.4; cursor:default; }
   .review-save.saved{ background:var(--good); }
+  tr.edit-row td{ background:var(--surface-2); padding:10px 14px; }
+  .edit-row-inner{ display:flex; align-items:center; gap:14px; flex-wrap:wrap; }
+  .edit-problem-type{ padding:5px 8px; font-size:12px; border-radius:7px; }
 
   .foot-note{ text-align:center; color:var(--ink-3); font-size:11.5px; margin-top:30px; }
 </style>
@@ -463,6 +466,7 @@
       <!-- bộ lọc + bảng ĐƠN HOÀN -->
       <div id="lists-returns-view">
         <div class="filter-row" style="margin-top:12px;">
+          <input type="text" id="retlist-search" placeholder="Tìm mã đơn…" autocomplete="off" />
           <select id="review-type-filter">
             <option value="all" selected>Tất cả loại</option>
             <option value="doi_tra">Hoàn trả (cần kiểm)</option>
@@ -476,24 +480,17 @@
             <option value="custom">Chọn tháng khác…</option>
           </select>
           <input type="month" id="review-month" hidden />
-          <select id="review-match-filter">
-            <option value="all">Khớp sàn: tất cả</option>
-            <option value="unmatched">Chưa khớp sàn</option>
-            <option value="matched">Đã khớp sàn</option>
-          </select>
           <label class="inline"><input type="checkbox" id="review-problem-only" /> Chỉ đơn có vấn đề</label>
           <button class="btn ghost small" id="review-refresh">Làm mới</button>
           <button class="btn ghost small" id="review-export">⬇ Xuất Excel</button>
         </div>
-        <p class="hint" style="margin:0 0 10px;">Với đơn <b>Hoàn trả</b>: bóc hàng xong thì nhập SKU / số lượng / tình trạng / lý do trả ngay trong bảng rồi bấm <b>Lưu</b>. Đơn <b>Huỷ / Bom hàng</b> không cần điền các cột này. Danh sách gộp theo từng ngày, ngày gần nhất lên trên. Nút <b>Xuất Excel</b> tải về toàn bộ đơn hoàn trong khoảng đang chọn (không theo bộ lọc loại/khớp sàn) — dùng để tổng hợp cuối tháng gửi đối chiếu.</p>
+        <p class="hint" style="margin:0 0 10px;">Bóc kiểm xong, nếu hàng có vấn đề thì bấm <b>Sửa</b> ở cuối dòng để đánh dấu và chọn lý do. Cột <b>Khiếu nại</b> tự lưu ngay khi đổi trạng thái, không cần bấm nút. Danh sách gộp theo từng ngày, ngày gần nhất lên trên. Nút <b>Xuất Excel</b> tải về toàn bộ đơn hoàn trong khoảng đang chọn (không theo các bộ lọc) — dùng để tổng hợp cuối tháng gửi đối chiếu.</p>
         <div class="twrap">
           <table>
             <thead><tr>
-              <th>Mã vận đơn</th><th>Sàn</th><th>Loại</th>
-              <th>SKU</th><th>SL</th><th>Danh mục trả</th><th>Tình trạng đơn</th><th>Lý do trả</th>
-              <th>Khớp sàn</th><th>Khiếu nại</th><th></th>
+              <th>Mã vận đơn</th><th>Sàn</th><th>Khiếu nại</th><th></th>
             </tr></thead>
-            <tbody id="review-body"><tr class="empty-row"><td colspan="11">Đang tải…</td></tr></tbody>
+            <tbody id="review-body"><tr class="empty-row"><td colspan="4">Đang tải…</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -816,7 +813,10 @@
   document.getElementById("tabnav").addEventListener("click", function(e){
     var btn = e.target.closest("button[data-tab]");
     if(!btn) return;
-    setTab(btn.getAttribute("data-tab"));
+    var tabV = btn.getAttribute("data-tab");
+    // Bấm thẳng vào tab 4 (không phải qua nút "Xem & sửa" ở Tổng quan) thì bỏ bộ lọc chưa-khớp-sàn nội bộ, xem đầy đủ.
+    if(tabV === "lists") listsMatchFilter = "all";
+    setTab(tabV);
   });
   function setTab(tab){
     state.tab = tab;
@@ -856,6 +856,7 @@
     var btn = e.target.closest("button[data-v]");
     if(!btn) return;
     var v = btn.getAttribute("data-v");
+    if(v === "returns") listsMatchFilter = "all";
     state.listsType = v;
     $("lists-type-seg").querySelectorAll("button").forEach(function(b){ b.classList.toggle("on", b.getAttribute("data-v")===v); });
     $("lists-returns-view").hidden = (v !== "returns");
@@ -1460,15 +1461,16 @@
     $("lists-type-seg").querySelectorAll("button").forEach(function(b){ b.classList.toggle("on", b.getAttribute("data-v")==="returns"); });
     $("lists-returns-view").hidden = false;
     $("lists-outbound-view").hidden = true;
-    $("review-match-filter").value = "unmatched";
+    listsMatchFilter = "unmatched"; // lọc nội bộ, không còn ô chọn "Khớp sàn" trên giao diện
     setTab("lists");
   }
 
   /* ================= 4. LISTS (Danh sách) ================= */
-  ["review-type-filter","review-match-filter"].forEach(function(id){ $(id).addEventListener("change", loadListsReturns); });
+  $("review-type-filter").addEventListener("change", loadListsReturns);
   $("review-problem-only").addEventListener("change", loadListsReturns);
   $("review-refresh").addEventListener("click", loadListsReturns);
   $("review-export").addEventListener("click", exportMonthlyReturns);
+  $("retlist-search").addEventListener("input", renderListsReturnsFiltered);
   wireRangeMonthToggle("review-range", "review-month", loadListsReturns);
   $("outlist-refresh").addEventListener("click", loadListsOutbound);
   $("outlist-search").addEventListener("input", renderListsOutbound);
@@ -1526,93 +1528,123 @@
     });
   }
 
+  var listsMatchFilter = "all"; // lọc "khớp sàn" nội bộ (không còn ô chọn trên UI) — chỉ đổi qua jumpToUnmatchedReturns()
+  var listsReturnsCache = []; // dữ liệu đơn hoàn đã tải + lọc theo loại/khớp sàn/có vấn đề — lọc thêm theo ô tìm mã ngay trên máy, không gọi lại API
+  var listsReturnsEditingCode = null; // mã đơn đang mở dòng "Sửa" (mỗi lần chỉ mở 1 dòng)
+
   function loadListsReturns(){
     var body = $("review-body");
-    body.innerHTML = '<tr class="empty-row"><td colspan="11">Đang tải…</td></tr>';
+    body.innerHTML = '<tr class="empty-row"><td colspan="4">Đang tải…</td></tr>';
+    listsReturnsEditingCode = null;
     var range = rangeFromSelect($("review-range").value, $("review-month").value);
     var typeFilter = $("review-type-filter").value;
     var q = T_RETURNS+"?scan_date=gte."+range.start+"&scan_date=lte."+range.end+"&order=scan_date.desc,scanned_at.desc&limit=500";
     if(typeFilter !== "all") q += "&return_type=eq."+typeFilter;
     sbGet(q).then(function(rows){
-      var matchFilter = $("review-match-filter").value;
       var problemOnly = $("review-problem-only").checked;
       var filtered = rows.filter(function(e){
-        if(matchFilter === "matched" && !e.matched_in_platform_file) return false;
-        if(matchFilter === "unmatched" && e.matched_in_platform_file) return false;
+        if(listsMatchFilter === "matched" && !e.matched_in_platform_file) return false;
+        if(listsMatchFilter === "unmatched" && e.matched_in_platform_file) return false;
         if(problemOnly && !e.has_problem) return false;
         return true;
       });
-      renderListsReturns(filtered);
+      listsReturnsCache = filtered;
+      renderListsReturnsFiltered();
       updateListsBadge();
     }).catch(function(err){
-      body.innerHTML = '<tr class="empty-row"><td colspan="11">Không tải được dữ liệu.</td></tr>';
+      body.innerHTML = '<tr class="empty-row"><td colspan="4">Không tải được dữ liệu.</td></tr>';
       console.error(err);
     });
   }
+  // Lọc theo ô tìm mã ngay trên dữ liệu đã tải (không gọi lại API) rìiẽ bảng — dùng cho lần tải đầu và mỗi khi gõ ô tìm mã.
+  function renderListsReturnsFiltered(){
+    var q = ($("retlist-search").value || "").trim().toLowerCase();
+    var rows = q ? listsReturnsCache.filter(function(e){ return (e.code||"").toLowerCase().indexOf(q) >= 0; }) : listsReturnsCache;
+    renderListsReturns(rows);
+  }
   function renderListsReturns(rows){
     var body = $("review-body");
-    if(!rows.length){ body.innerHTML = '<tr class="empty-row"><td colspan="11">Không có đơn nào phù hợp bộ lọc.</td></tr>'; return; }
+    if(!rows.length){ body.innerHTML = '<tr class="empty-row"><td colspan="4">Không có đơn nào phù hợp bộ lọc.</td></tr>'; return; }
     var groups = groupByDate(rows);
     body.innerHTML = groups.map(function(g){
-      var head = '<tr class="day-group-row"><td colspan="11">'+dayLabel(g.date)+'<span class="day-count">· '+g.items.length+' đơn</span></td></tr>';
+      var head = '<tr class="day-group-row"><td colspan="4">'+dayLabel(g.date)+'<span class="day-count">· '+g.items.length+' đơn</span></td></tr>';
       var itemsHtml = g.items.map(function(e){
-        var isDoiTra = (e.return_type || "doi_tra") === "doi_tra";
-        var matchedBadge = e.matched_in_platform_file
-          ? '<span class="badge matched">Đã khớp</span>' : '<span class="badge unmatched">Chưa khớp</span>';
-        var complaintSel = e.has_problem
+        var complaintCell = e.has_problem
           ? '<select class="status-sel review-complaint" data-code="'+escapeHtml(e.code)+'">' +
               ["pending","submitted","resolved"].map(function(s){
                 return '<option value="'+s+'"'+((e.complaint_status||"pending")===s?" selected":"")+'>'+STATUS_LABELS[s]+'</option>';
               }).join("") +
             '</select>'
           : '<span style="color:var(--ink-3);">—</span>';
-        if(!isDoiTra){
-          return '<tr data-code="'+escapeHtml(e.code)+'">' +
-            '<td class="mono">'+escapeHtml(e.code)+'</td>' +
-            '<td><span class="pill pill-'+e.platform+'">'+PLATFORMS[e.platform]+'</span></td>' +
-            '<td><span class="pill pill-boom">'+RTYPE_LABELS.boom+'</span></td>' +
-            '<td colspan="5" style="color:var(--ink-3);">Không cần kiểm — đã lên kệ</td>' +
-            '<td>'+matchedBadge+'</td>' +
-            '<td class="review-cell">'+complaintSel+'</td>' +
-            '<td></td>' +
-          '</tr>';
-        }
-        return '<tr class="'+(e.has_problem?"problem-row":"")+'" data-code="'+escapeHtml(e.code)+'">' +
+        var isEditing = listsReturnsEditingCode === e.code;
+        var rowHtml = '<tr class="'+(e.has_problem?"problem-row":"")+'" data-code="'+escapeHtml(e.code)+'">' +
           '<td class="mono">'+escapeHtml(e.code)+'</td>' +
           '<td><span class="pill pill-'+e.platform+'">'+PLATFORMS[e.platform]+'</span></td>' +
-          '<td><span class="pill pill-doi_tra">'+RTYPE_LABELS.doi_tra+'</span></td>' +
-          '<td class="review-cell"><input class="review-input wide r-sku" type="text" value="'+escapeHtml(e.sku||"")+'" placeholder="SKU"></td>' +
-          '<td class="review-cell"><input class="review-input r-qty" type="number" min="0" value="'+(e.quantity!=null?e.quantity:"")+'" placeholder="SL"></td>' +
-          '<td class="review-cell"><input class="review-input wide r-cat" type="text" value="'+escapeHtml(e.return_category||"")+'" placeholder="Danh mục"></td>' +
-          '<td class="review-cell"><input class="review-input wide r-status" type="text" value="'+escapeHtml(e.order_status||"")+'" placeholder="Nguyên vẹn…"></td>' +
-          '<td class="review-cell"><input class="review-input wide r-reason" type="text" value="'+escapeHtml(e.return_reason||"")+'" placeholder="Lý do trả"></td>' +
-          '<td>'+matchedBadge+'</td>' +
-          '<td class="review-cell">'+complaintSel+'</td>' +
-          '<td><button class="review-save" data-code="'+escapeHtml(e.code)+'">Lưu</button></td>' +
+          '<td class="review-cell">'+complaintCell+'</td>' +
+          '<td><button class="review-save review-edit-btn" data-code="'+escapeHtml(e.code)+'">'+(isEditing?"Huỷ":"Sửa")+'</button></td>' +
         '</tr>';
+        if(isEditing){
+          var reasonOpts = ["hu_hong","sai_hang"].map(function(k){
+            return '<option value="'+k+'"'+((e.problem_type||"hu_hong")===k?" selected":"")+'>'+PROBLEM_LABELS[k]+'</option>';
+          }).join("");
+          rowHtml += '<tr class="edit-row"><td colspan="4"><div class="edit-row-inner">' +
+              '<label class="checkline" style="margin-top:0;"><input type="checkbox" class="edit-has-problem"'+(e.has_problem?" checked":"")+'/><span>Đơn này có vấn đề</span></label>' +
+              '<select class="edit-problem-type"'+(e.has_problem?"":" hidden")+'>'+reasonOpts+'</select>' +
+              '<button class="review-save edit-save-btn" data-code="'+escapeHtml(e.code)+'">Lưu</button>' +
+            '</div></td></tr>';
+        }
+        return rowHtml;
       }).join("");
       return head + itemsHtml;
     }).join("");
 
-    body.querySelectorAll(".review-save").forEach(function(btn){
+    // Khiếu nại tự lưu ngay khi đổi — không cần nút Lưu riêng.
+    body.querySelectorAll(".review-complaint").forEach(function(sel){
+      sel.addEventListener("change", function(){
+        var code = sel.getAttribute("data-code");
+        var val = sel.value;
+        sel.disabled = true;
+        patchByCode(T_RETURNS, code, { complaint_status: val }).then(function(){
+          sel.disabled = false;
+          var row = listsReturnsCache.filter(function(r){ return r.code === code; })[0];
+          if(row) row.complaint_status = val;
+        }).catch(function(err){
+          sel.disabled = false;
+          console.error(err);
+          alert("Lưu khiếu nại thất bại, thử lại.");
+        });
+      });
+    });
+
+    body.querySelectorAll(".edit-has-problem").forEach(function(cb){
+      cb.addEventListener("change", function(){
+        cb.closest(".edit-row-inner").querySelector(".edit-problem-type").hidden = !cb.checked;
+      });
+    });
+
+    body.querySelectorAll(".review-edit-btn").forEach(function(btn){
       btn.addEventListener("click", function(){
-        var tr = btn.closest("tr");
         var code = btn.getAttribute("data-code");
-        var qtyVal = tr.querySelector(".r-qty").value;
+        listsReturnsEditingCode = (listsReturnsEditingCode === code) ? null : code;
+        renderListsReturnsFiltered();
+      });
+    });
+
+    body.querySelectorAll(".edit-save-btn").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var code = btn.getAttribute("data-code");
+        var wrap = btn.closest(".edit-row-inner");
+        var hasProblem = wrap.querySelector(".edit-has-problem").checked;
+        var problemType = wrap.querySelector(".edit-problem-type").value;
+        var row = listsReturnsCache.filter(function(r){ return r.code === code; })[0];
         var fields = {
-          sku: tr.querySelector(".r-sku").value.trim() || null,
-          quantity: qtyVal === "" ? null : +qtyVal,
-          return_category: tr.querySelector(".r-cat").value.trim() || null,
-          order_status: tr.querySelector(".r-status").value.trim() || null,
-          return_reason: tr.querySelector(".r-reason").value.trim() || null
+          has_problem: hasProblem,
+          problem_type: hasProblem ? problemType : null,
+          complaint_status: hasProblem ? ((row && row.complaint_status && row.complaint_status !== "none") ? row.complaint_status : "pending") : "none"
         };
-        var complaintSel = tr.querySelector(".review-complaint");
-        if(complaintSel) fields.complaint_status = complaintSel.value;
         btn.disabled = true; btn.textContent = "Đang lưu…";
         patchByCode(T_RETURNS, code, fields).then(function(){
-          btn.textContent = "Đã lưu"; btn.classList.add("saved");
-          setTimeout(function(){ btn.disabled = false; btn.textContent = "Lưu"; btn.classList.remove("saved"); }, 1500);
-          updateListsBadge();
+          loadListsReturns();
         }).catch(function(err){
           btn.disabled = false; btn.textContent = "Lưu";
           console.error(err);
@@ -1621,9 +1653,9 @@
       });
     });
   }
+  // Số hiển thị ở tab "4. Danh sách" = số đơn đang có vấn đề mà chưa gửi khiếu nại — việc cần làm tiếp theo.
   function updateListsBadge(){
-    var range = monthRange(thisMonthStr());
-    sbGet(T_RETURNS+"?return_type=eq.doi_tra&sku=is.null&scan_date=gte."+range.start+"&scan_date=lte."+range.end+"&select=id").then(function(rows){
+    sbGet(T_RETURNS+"?has_problem=eq.true&complaint_status=eq.pending&select=id").then(function(rows){
       var badge = $("lists-badge");
       if(rows.length > 0){ badge.hidden = false; badge.textContent = rows.length; } else { badge.hidden = true; }
     }).catch(function(){});
