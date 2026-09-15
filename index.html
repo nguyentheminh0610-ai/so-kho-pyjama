@@ -424,12 +424,19 @@
       <div class="kpi"><span class="lbl">Số đơn đi (tháng này)</span><span class="val">—</span><span class="foot">Đang tải dữ liệu…</span></div>
       <div class="kpi"><span class="lbl">Số đơn khiếu nại</span><span class="val">—</span><span class="foot">Đang tải dữ liệu…</span></div>
     </div>
+    <div class="card" style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
+      <div>
+        <b>Đối chiếu với sàn (Sổ Vận Hành)</b>
+        <p class="sub" style="margin:4px 0 0;" id="dash-recon-status">Chưa đối chiếu trong phiên này — bấm nút để kiểm tra, đối chiếu không tự chạy nữa.</p>
+      </div>
+      <button type="button" class="btn" id="dash-reconcile-btn" style="width:auto; margin-top:0; white-space:nowrap;">🔄 Đối chiếu với sàn</button>
+    </div>
     <div class="card">
       <div class="card-head">
         <h2>Mã đơn shipper chưa trả</h2>
         <span class="sub" style="margin:0;" id="dash-outstanding-count"></span>
       </div>
-      <p class="sub">Sàn đã báo hoàn (khớp theo mã vận đơn / mã đơn hàng) nhưng kho chưa quét nhận — đối chiếu tự động với dữ liệu Sổ Vận Hành, gộp 3 kỳ báo cáo gần nhất</p>
+      <p class="sub">Sàn đã báo hoàn (khớp theo mã vận đơn / mã đơn hàng) nhưng kho chưa quét nhận — theo lần đối chiếu gần nhất với dữ liệu Sổ Vận Hành (gộp 3 kỳ báo cáo gần nhất). Bấm "Đối chiếu với sàn" ở trên để cập nhật.</p>
       <div id="dash-outstanding"><div class="empty-state">Đang tải…</div></div>
     </div>
     <div class="card">
@@ -437,7 +444,7 @@
         <h2>Đơn kho đã nhận nhưng sàn chưa báo</h2>
         <span class="sub" style="margin:0;" id="dash-surplus-count"></span>
       </div>
-      <p class="sub">Kho đã tích nhận nhưng không thấy trong dữ liệu sàn báo hoàn (cùng 3 kỳ báo cáo ở trên) — có thể do quét nhầm mã, sàn chưa cập nhật, hoặc cần kiểm tra lại. Sửa/xoá tại mục 4. Danh sách.</p>
+      <p class="sub">Kho đã tích nhận nhưng không thấy trong dữ liệu sàn báo hoàn (cùng 3 kỳ báo cáo ở trên) — có thể do quét nhầm mã, sàn chưa cập nhật, hoặc cần kiểm tra lại. Sửa/xoá tại mục 4. Danh sách. Bấm "Đối chiếu với sàn" ở trên để cập nhật.</p>
       <div id="dash-surplus"><div class="empty-state">Đang tải…</div></div>
     </div>
   </section>
@@ -1316,7 +1323,12 @@
     }).catch(function(err){ console.error("đối chiếu tự động lỗi:", err); return null; });
   }
 
-  /* ================= 3. DASHBOARD (Tổng quan) ================= */
+  /* ================= 3. DASHBOARD (Tổng quan) =================
+     Đối chiếu với Sổ Vận Hành TRƯỚC ĐÂY tự chạy mỗi lần mở tab này (tốn nhiều lượt gọi Supabase vì phải
+     đọc+ghi toàn bộ đơn hoàn của cả 2 sàn mỗi lần). Giờ đổi thành CHỈ chạy khi bấm nút "Đối chiếu với sàn"
+     — loadDashboard() chỉ tải KPI + danh sách "tồn đọng" đã lưu sẵn (đọc thôi, rất nhẹ), còn "đơn thừa"
+     chỉ hiện sau khi đã bấm đối chiếu ít nhất 1 lần trong phiên (lastReconRange còn null thì chưa có gì để so). */
+  var lastReconRange = null;
   function loadDashboard(){
     if(!state.connected) return;
     var end = todayStr();
@@ -1325,18 +1337,17 @@
     var kpiGrid = $("kpi-grid");
     kpiGrid.querySelectorAll(".val").forEach(function(v){ v.textContent = "—"; });
 
-    runSilentReconcile().then(function(reconRange){
-      var surplusQuery = reconRange
-        ? sbGet(T_RETURNS+"?matched_in_platform_file=eq.false&scan_date=gte."+reconRange.start+"&scan_date=lte."+reconRange.end+"&order=scan_date.desc&limit=300&select=code,platform,return_type,scan_date")
-        : Promise.resolve([]);
-      return Promise.all([
-        sbGet(T_RETURNS+"?scan_date=gte."+monthStart+"&scan_date=lte."+end+"&select=platform"),
-        sbGet(T_OUTBOUND+"?scan_date=gte."+monthStart+"&scan_date=lte."+end+"&select=platform"),
-        sbGet(T_RETURNS+"?has_problem=eq.true&select=complaint_status"),
-        sbGet(T_MATCH+"?status=eq.pending&select=platform,match_key,loai,updated_at&order=updated_at.asc"),
-        surplusQuery
-      ]);
-    }).then(function(results){
+    var surplusQuery = lastReconRange
+      ? sbGet(T_RETURNS+"?matched_in_platform_file=eq.false&scan_date=gte."+lastReconRange.start+"&scan_date=lte."+lastReconRange.end+"&order=scan_date.desc&limit=300&select=code,platform,return_type,scan_date")
+      : Promise.resolve(null);
+
+    Promise.all([
+      sbGet(T_RETURNS+"?scan_date=gte."+monthStart+"&scan_date=lte."+end+"&select=platform"),
+      sbGet(T_OUTBOUND+"?scan_date=gte."+monthStart+"&scan_date=lte."+end+"&select=platform"),
+      sbGet(T_RETURNS+"?has_problem=eq.true&select=complaint_status"),
+      sbGet(T_MATCH+"?status=eq.pending&select=platform,match_key,loai,updated_at&order=updated_at.asc"),
+      surplusQuery
+    ]).then(function(results){
       var returnsRows = results[0];
       var outboundRows = results[1];
       var complaintRows = results[2];
@@ -1361,6 +1372,28 @@
       updateListsBadge();
     }).catch(function(err){ console.error("dashboard load error", err); });
   }
+  function runManualReconcile(){
+    var btn = $("dash-reconcile-btn");
+    var statusEl = $("dash-recon-status");
+    if(!state.connected){ statusEl.textContent = "Chưa kết nối được dữ liệu, thử lại sau."; return; }
+    btn.disabled = true;
+    btn.textContent = "Đang đối chiếu…";
+    statusEl.textContent = "Đang đối chiếu với dữ liệu Sổ Vận Hành…";
+    runSilentReconcile().then(function(reconRange){
+      lastReconRange = reconRange;
+      statusEl.textContent = reconRange
+        ? "Đối chiếu gần nhất: " + fmtTime(new Date().toISOString()) + " " + fmtDate(todayStr())
+        : "Đối chiếu xong nhưng chưa có kỳ báo cáo nào từ Sổ Vận Hành để so.";
+      return loadDashboard();
+    }).catch(function(err){
+      statusEl.textContent = "Đối chiếu lỗi, thử lại.";
+      console.error(err);
+    }).then(function(){
+      btn.disabled = false;
+      btn.textContent = "🔄 Đối chiếu với sàn";
+    });
+  }
+  $("dash-reconcile-btn").addEventListener("click", runManualReconcile);
   function renderDashOutstanding(outstandingRows){
     $("dash-outstanding-count").textContent = outstandingRows.length + " đơn";
     var el = $("dash-outstanding");
@@ -1399,8 +1432,13 @@
   // "Thừa": kho đã tích nhận nhưng không có trong dữ liệu sàn báo hoàn, trong đúng khoảng ngày
   // mà các kỳ báo cáo vừa gộp đã bao phủ (loại trừ đơn quá mới, sàn chưa kịp báo).
   function renderDashSurplus(surplusRows){
-    $("dash-surplus-count").textContent = surplusRows.length + " đơn";
     var el = $("dash-surplus");
+    if(surplusRows === null){
+      $("dash-surplus-count").textContent = "";
+      el.innerHTML = '<div class="empty-state"><b>Chưa đối chiếu trong phiên này</b>Bấm "Đối chiếu với sàn" ở trên để kiểm tra đơn thừa.</div>';
+      return;
+    }
+    $("dash-surplus-count").textContent = surplusRows.length + " đơn";
     if(surplusRows.length === 0){
       el.innerHTML = '<div class="empty-state"><b>Không có đơn thừa</b>Mọi đơn kho đã nhận đều có trong dữ liệu sàn báo hoàn.</div>';
       return;
