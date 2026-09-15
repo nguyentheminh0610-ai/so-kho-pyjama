@@ -1234,16 +1234,13 @@
       var playPromise = video.play();
       if(playPromise && playPromise.catch) playPromise.catch(function(){});
 
-      var hints = new Map();
-      hints.set(ZXingBrowser.DecodeHintType.POSSIBLE_FORMATS, [
-        ZXingBrowser.BarcodeFormat.QR_CODE, ZXingBrowser.BarcodeFormat.CODE_128,
-        ZXingBrowser.BarcodeFormat.CODE_39, ZXingBrowser.BarcodeFormat.CODE_93,
-        ZXingBrowser.BarcodeFormat.EAN_13, ZXingBrowser.BarcodeFormat.EAN_8,
-        ZXingBrowser.BarcodeFormat.ITF, ZXingBrowser.BarcodeFormat.UPC_A,
-        ZXingBrowser.BarcodeFormat.UPC_E, ZXingBrowser.BarcodeFormat.CODABAR
-      ]);
-      hints.set(ZXingBrowser.DecodeHintType.TRY_HARDER, true);
-      var reader = new ZXingBrowser.BrowserMultiFormatReader(hints);
+      /* Bản @zxing/browser đóng gói qua CDN KHÔNG export ZXingBrowser.DecodeHintType (chỉ có BarcodeFormat,
+         BrowserMultiFormatReader...), nên trước đây gọi hints.set(ZXingBrowser.DecodeHintType...) bị lỗi
+         "Cannot read properties of undefined" ngay khi vừa mở camera — camera vẫn lên hình bình thường
+         nhưng phần đọc mã chưa kịp chạy đã bị lỗi, hiện nhầm thành thông báo "không mở được camera".
+         Không truyền hints nữa — để reader tự thử tất cả các loại mã nó hỗ trợ (đã đủ dùng: QR, Code128,
+         Code39, EAN, UPC, Codabar, ITF...). */
+      var reader = new ZXingBrowser.BrowserMultiFormatReader();
 
       return reader.decodeFromStream(stream, video, function(result, err, controls){
         if(!scannerState.active) return;
