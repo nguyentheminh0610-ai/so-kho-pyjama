@@ -315,6 +315,7 @@
     <button data-tab="outbound">2. Tích đơn đi</button>
     <button data-tab="dashboard">3. Tổng quan</button>
     <button data-tab="lists">4. Danh sách <span class="n" id="lists-badge" hidden>0</span></button>
+    <button data-tab="errorlog">5. Thống kê lỗi</button>
   </nav>
 
   <!-- ================= 1. RETURNS ================= -->
@@ -451,33 +452,6 @@
       <p class="sub">Kho đã tích nhận nhưng không thấy trong dữ liệu sàn báo hoàn (cùng 3 kỳ báo cáo ở trên) — có thể do quét nhầm mã, sàn chưa cập nhật, hoặc cần kiểm tra lại. Sửa/xoá tại mục 4. Danh sách. Bấm "Đối chiếu với sàn" ở trên để cập nhật.</p>
       <div id="dash-surplus"><div class="empty-state">Đang tải…</div></div>
     </div>
-    <div class="card">
-      <div class="card-head">
-        <h2>Thống kê lỗi</h2>
-        <span class="sub" style="margin:0;" id="errlog-count"></span>
-      </div>
-      <p class="sub">Ghi lại các đơn lỗi thuộc về shop — <b>Lỗi shop - Kho vận</b> (đóng gói/gửi sai) hoặc
-        <b>Lỗi shop - Sản phẩm</b> (lỗi từ nhà cung cấp) — ngay khi phát hiện qua chat khách hàng hoặc kiểm tra
-        yêu cầu trả hàng, không cần chờ hàng về kho, để sau này truy trách nhiệm/khiếu nại nhà cung cấp. Dùng
-        chung <b>mã vận đơn</b> với lúc kho tích đơn — nhân viên kho tích đúng mã này ở mục 1 sẽ tự thấy cảnh
-        báo kèm lý do để biết cách xử lý, còn đơn vẫn tích bình thường như mọi đơn khác.</p>
-      <div class="filter-row" style="margin-top:0;">
-        <input type="text" id="errlog-code" placeholder="Mã vận đơn…" autocomplete="off" style="max-width:200px;" />
-        <select id="errlog-type">
-          <option value="kho_van">Lỗi shop - Kho vận</option>
-          <option value="san_pham">Lỗi shop - Sản phẩm</option>
-        </select>
-        <input type="text" id="errlog-reason" placeholder="Lý do cụ thể…" autocomplete="off" style="flex:1; min-width:180px;" />
-        <button class="btn ghost small" id="errlog-add">Ghi lại</button>
-      </div>
-      <div class="toast" id="errlog-toast"></div>
-      <div class="twrap" style="margin-top:10px;">
-        <table>
-          <thead><tr><th>Mã vận đơn</th><th>Loại lỗi</th><th>Lý do</th><th>Ngày ghi</th><th></th></tr></thead>
-          <tbody id="errlog-body"><tr class="empty-row"><td colspan="5">Đang tải…</td></tr></tbody>
-        </table>
-      </div>
-    </div>
   </section>
 
   <!-- ================= 4. LISTS (Danh sách) ================= -->
@@ -539,6 +513,37 @@
         </div>
         <p class="hint" style="margin:0 0 10px;">Mỗi cột là 1 ngày, xếp từ trái sang phải — cuộn ngang để xem hết. Gõ mã vào ô tìm kiếm để lọc nhanh.</p>
         <div class="daygrid" id="outlist-daygrid"><div class="empty-state">Đang tải…</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= 5. ERROR LOG (Thống kê lỗi) ================= -->
+  <section class="panel" id="panel-errorlog" hidden>
+<div class="card">
+      <div class="card-head">
+        <h2>Thống kê lỗi</h2>
+        <span class="sub" style="margin:0;" id="errlog-count"></span>
+      </div>
+      <p class="sub">Ghi lại các đơn lỗi thuộc về shop — <b>Lỗi shop - Kho vận</b> (đóng gói/gửi sai) hoặc
+        <b>Lỗi shop - Sản phẩm</b> (lỗi từ nhà cung cấp) — ngay khi phát hiện qua chat khách hàng hoặc kiểm tra
+        yêu cầu trả hàng, không cần chờ hàng về kho, để sau này truy trách nhiệm/khiếu nại nhà cung cấp. Dùng
+        chung <b>mã vận đơn</b> với lúc kho tích đơn — nhân viên kho tích đúng mã này ở mục 1 sẽ tự thấy cảnh
+        báo kèm lý do để biết cách xử lý, còn đơn vẫn tích bình thường như mọi đơn khác.</p>
+      <div class="filter-row" style="margin-top:0;">
+        <input type="text" id="errlog-code" placeholder="Mã vận đơn…" autocomplete="off" style="max-width:200px;" />
+        <select id="errlog-type">
+          <option value="kho_van">Lỗi shop - Kho vận</option>
+          <option value="san_pham">Lỗi shop - Sản phẩm</option>
+        </select>
+        <input type="text" id="errlog-reason" placeholder="Lý do cụ thể…" autocomplete="off" style="flex:1; min-width:180px;" />
+        <button class="btn ghost small" id="errlog-add">Ghi lại</button>
+      </div>
+      <div class="toast" id="errlog-toast"></div>
+      <div class="twrap" style="margin-top:10px;">
+        <table>
+          <thead><tr><th>Mã vận đơn</th><th>Loại lỗi</th><th>Lý do</th><th>Ngày ghi</th><th></th></tr></thead>
+          <tbody id="errlog-body"><tr class="empty-row"><td colspan="5">Đang tải…</td></tr></tbody>
+        </table>
       </div>
     </div>
   </section>
@@ -853,7 +858,7 @@
   staffInput.addEventListener("keydown", function(e){ if(e.key === "Enter"){ $("staff-save").click(); } });
 
   /* ---------------- tab nav ---------------- */
-  var tabs = ["returns","outbound","dashboard","lists"];
+  var tabs = ["returns","outbound","dashboard","lists","errorlog"];
   document.getElementById("tabnav").addEventListener("click", function(e){
     var btn = e.target.closest("button[data-tab]");
     if(!btn) return;
@@ -873,6 +878,7 @@
     if(tab === "outbound"){ loadOutboundToday(); startPoll(loadOutboundToday); }
     if(tab === "dashboard") loadDashboard();
     if(tab === "lists") loadLists();
+    if(tab === "errorlog") loadErrorLog();
   }
   function startPoll(fn){ stopPoll(); state.pollTimer = setInterval(fn, 6000); }
   function stopPoll(){ if(state.pollTimer){ clearInterval(state.pollTimer); state.pollTimer = null; } }
@@ -1418,7 +1424,6 @@
       renderDashSurplus(surplusRows);
       updateListsBadge();
     }).catch(function(err){ console.error("dashboard load error", err); });
-    loadErrorLog();
   }
   function runManualReconcile(){
     var btn = $("dash-reconcile-btn");
