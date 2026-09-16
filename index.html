@@ -327,6 +327,7 @@
         <label class="field-label">Mã vận đơn</label>
         <input class="order-code" id="returns-code" placeholder="Quét hoặc nhập mã vận đơn…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
         <p class="platform-badge" id="returns-platform-badge"><span class="sw" style="width:8px;height:8px;border-radius:50%;background:var(--ink-3);display:inline-block;"></span> Chưa nhận diện được sàn — quét hoặc gõ mã vào ô trên</p>
+        <div class="problem-box" id="returns-errorlog-warn" style="display:none;"></div>
 
         <label class="field-label">Loại đơn hoàn</label>
         <div class="seg" id="returns-rtype-seg">
@@ -344,8 +345,8 @@
             <div>
               <label class="field-label" style="margin-top:0;">Lý do</label>
               <select id="returns-problem-type">
-                <option value="hu_hong">Hàng hỏng</option>
-                <option value="sai_hang">Hàng không phải của shop</option>
+                <option value="hu_hong">Lỗi khách - Hàng hỏng</option>
+                <option value="sai_hang">Lỗi khách - Hàng không phải của shop</option>
               </select>
             </div>
           </div>
@@ -450,6 +451,33 @@
       <p class="sub">Kho đã tích nhận nhưng không thấy trong dữ liệu sàn báo hoàn (cùng 3 kỳ báo cáo ở trên) — có thể do quét nhầm mã, sàn chưa cập nhật, hoặc cần kiểm tra lại. Sửa/xoá tại mục 4. Danh sách. Bấm "Đối chiếu với sàn" ở trên để cập nhật.</p>
       <div id="dash-surplus"><div class="empty-state">Đang tải…</div></div>
     </div>
+    <div class="card">
+      <div class="card-head">
+        <h2>Thống kê lỗi</h2>
+        <span class="sub" style="margin:0;" id="errlog-count"></span>
+      </div>
+      <p class="sub">Ghi lại các đơn lỗi thuộc về shop — <b>Lỗi shop - Kho vận</b> (đóng gói/gửi sai) hoặc
+        <b>Lỗi shop - Sản phẩm</b> (lỗi từ nhà cung cấp) — ngay khi phát hiện qua chat khách hàng hoặc kiểm tra
+        yêu cầu trả hàng, không cần chờ hàng về kho, để sau này truy trách nhiệm/khiếu nại nhà cung cấp. Dùng
+        chung <b>mã vận đơn</b> với lúc kho tích đơn — nhân viên kho tích đúng mã này ở mục 1 sẽ tự thấy cảnh
+        báo kèm lý do để biết cách xử lý, còn đơn vẫn tích bình thường như mọi đơn khác.</p>
+      <div class="filter-row" style="margin-top:0;">
+        <input type="text" id="errlog-code" placeholder="Mã vận đơn…" autocomplete="off" style="max-width:200px;" />
+        <select id="errlog-type">
+          <option value="kho_van">Lỗi shop - Kho vận</option>
+          <option value="san_pham">Lỗi shop - Sản phẩm</option>
+        </select>
+        <input type="text" id="errlog-reason" placeholder="Lý do cụ thể…" autocomplete="off" style="flex:1; min-width:180px;" />
+        <button class="btn ghost small" id="errlog-add">Ghi lại</button>
+      </div>
+      <div class="toast" id="errlog-toast"></div>
+      <div class="twrap" style="margin-top:10px;">
+        <table>
+          <thead><tr><th>Mã vận đơn</th><th>Loại lỗi</th><th>Lý do</th><th>Ngày ghi</th><th></th></tr></thead>
+          <tbody id="errlog-body"><tr class="empty-row"><td colspan="5">Đang tải…</td></tr></tbody>
+        </table>
+      </div>
+    </div>
   </section>
 
   <!-- ================= 4. LISTS (Danh sách) ================= -->
@@ -534,12 +562,20 @@
   var T_OUTBOUND = "warehouse_outbound_checks";
   var T_MATCH = "warehouse_return_match_status";
   var T_REPORTS = "monthly_reports"; // sở hữu bởi Sổ Vận Hành — chỉ đọc
+  var T_ERRLOG = "warehouse_error_log"; // sổ "Thống kê lỗi" — quản lý ghi tay, độc lập với warehouse_return_checks
 
   var PLATFORMS = { tiktok: "TikTok Shop", shopee: "Shopee" };
   var PLATFORM_TO_SANPHAM = { tiktok: "TikTok", shopee: "Shopee" }; // giá trị field `sanPham` trong hoanVeKhoDetail
+  // 2 lý do "có vấn đề" đánh dấu lúc kho bóc hàng ra kiểm — đều là lỗi phía khách hàng.
   var PROBLEM_LABELS = {
-    hu_hong: "Hàng hỏng",
-    sai_hang: "Hàng không phải của shop"
+    hu_hong: "Lỗi khách - Hàng hỏng",
+    sai_hang: "Lỗi khách - Hàng không phải của shop"
+  };
+  // 2 loại lỗi ghi trong "Thống kê lỗi" (mục Tổng quan) — đều là lỗi phía shop, quản lý ghi tay
+  // ngay khi phát hiện qua chat khách/kiểm tra yêu cầu trả hàng, không cần chờ hàng về kho.
+  var SHOP_ERROR_LABELS = {
+    kho_van: "Lỗi shop - Kho vận",
+    san_pham: "Lỗi shop - Sản phẩm"
   };
   var STATUS_LABELS = { none:"Không cần", pending:"Chờ xử lý", submitted:"Đã gửi khiếu nại", resolved:"Đã xử lý xong", lost:"Xác nhận thất lạc" };
   var RTYPE_LABELS = { boom:"Huỷ / Bom hàng", doi_tra:"Hoàn trả" };
@@ -667,6 +703,14 @@
   }
   function deleteByCode(table, code){
     return fetch(sbUrl(table+"?code=eq."+encodeURIComponent(code)), {
+      method:"DELETE", headers: sbHeaders()
+    }).then(function(res){
+      if(!res.ok) return res.text().then(function(t){ throw new Error("HTTP "+res.status+": "+t); });
+      return true;
+    });
+  }
+  function deleteById(table, id){
+    return fetch(sbUrl(table+"?id=eq."+encodeURIComponent(id)), {
       method:"DELETE", headers: sbHeaders()
     }).then(function(res){
       if(!res.ok) return res.text().then(function(t){ throw new Error("HTTP "+res.status+": "+t); });
@@ -887,6 +931,7 @@
   }
   wirePlatformBadge("returns-code","returns-platform-badge","returnsPlatform");
   wirePlatformBadge("outbound-code","outbound-platform-badge","outboundPlatform");
+  $("returns-code").addEventListener("input", function(){ checkErrorLogWarning($("returns-code").value.trim()); });
 
   /* ---------------- connectivity ---------------- */
   function initConn(){
@@ -955,8 +1000,8 @@
       '<td>' +
         '<label style="display:flex; align-items:center; gap:5px; font-weight:600;"><input type="checkbox" class="e-hasproblem"'+(e.has_problem?" checked":"")+'> Có vấn đề</label>' +
         '<select class="e-problem-type" style="margin-top:5px;">' +
-          '<option value="hu_hong"'+(e.problem_type==="hu_hong"?" selected":"")+'>Hàng hỏng</option>' +
-          '<option value="sai_hang"'+(e.problem_type==="sai_hang"?" selected":"")+'>Hàng không phải của shop</option>' +
+          '<option value="hu_hong"'+(e.problem_type==="hu_hong"?" selected":"")+'>Lỗi khách - Hàng hỏng</option>' +
+          '<option value="sai_hang"'+(e.problem_type==="sai_hang"?" selected":"")+'>Lỗi khách - Hàng không phải của shop</option>' +
         '</select>' +
       '</td>' +
       '<td>'+escapeHtml(e.staff||"—")+'</td>' +
@@ -1081,6 +1126,7 @@
       returnsProblemBox.classList.remove("show");
       $("returns-platform-badge").innerHTML = '<span class="sw" style="width:8px;height:8px;border-radius:50%;background:var(--ink-3);display:inline-block;"></span> Chưa nhận diện được sàn — quét hoặc gõ mã vào ô trên';
       state.returnsPlatform = null;
+      checkErrorLogWarning("");
       codeInput.focus();
     }, function(err){
       $("returns-submit").disabled = false;
@@ -1372,6 +1418,7 @@
       renderDashSurplus(surplusRows);
       updateListsBadge();
     }).catch(function(err){ console.error("dashboard load error", err); });
+    loadErrorLog();
   }
   function runManualReconcile(){
     var btn = $("dash-reconcile-btn");
@@ -1395,6 +1442,90 @@
     });
   }
   $("dash-reconcile-btn").addEventListener("click", runManualReconcile);
+
+  /* ================= Thống kê lỗi (sổ ghi tay, độc lập với warehouse_return_checks) ================= */
+  var errLogCache = [];
+  function loadErrorLog(){
+    var body = $("errlog-body");
+    sbGet(T_ERRLOG+"?order=created_at.desc&limit=300").then(function(rows){
+      errLogCache = rows;
+      renderErrorLog(rows);
+    }).catch(function(err){
+      body.innerHTML = '<tr class="empty-row"><td colspan="5">Không tải được dữ liệu.</td></tr>';
+      console.error(err);
+    });
+  }
+  function renderErrorLog(rows){
+    var body = $("errlog-body");
+    $("errlog-count").textContent = rows.length ? rows.length + " ca đã ghi" : "";
+    if(!rows.length){ body.innerHTML = '<tr class="empty-row"><td colspan="5">Chưa ghi ca lỗi nào.</td></tr>'; return; }
+    body.innerHTML = rows.map(function(e){
+      return '<tr>' +
+        '<td class="mono">'+escapeHtml(e.code)+'</td>' +
+        '<td><span class="badge pending" style="background:var(--crit-soft);color:var(--crit-ink);">'+escapeHtml(SHOP_ERROR_LABELS[e.error_type]||e.error_type)+'</span></td>' +
+        '<td>'+escapeHtml(e.reason||"")+'</td>' +
+        '<td class="tabular">'+fmtDate(e.created_at ? e.created_at.slice(0,10) : "")+'</td>' +
+        '<td><button type="button" class="review-save errlog-del" data-id="'+e.id+'">Xoá</button></td>' +
+      '</tr>';
+    }).join("");
+    body.querySelectorAll(".errlog-del").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        if(!confirm("Xoá ghi nhận lỗi này?")) return;
+        var id = btn.getAttribute("data-id");
+        btn.disabled = true;
+        deleteById(T_ERRLOG, id).then(function(){
+          loadErrorLog();
+        }).catch(function(err){
+          btn.disabled = false;
+          console.error(err);
+          alert("Xoá thất bại, thử lại.");
+        });
+      });
+    });
+  }
+  function addErrorLogEntry(){
+    var codeInput = $("errlog-code");
+    var code = codeInput.value.trim();
+    var errorType = $("errlog-type").value;
+    var reasonInput = $("errlog-reason");
+    var reason = reasonInput.value.trim();
+    if(!code){ showToast("errlog-toast","err","Chưa nhập mã vận đơn."); codeInput.focus(); return; }
+    if(!reason){ showToast("errlog-toast","err","Chưa nhập lý do cụ thể."); reasonInput.focus(); return; }
+    var btn = $("errlog-add");
+    btn.disabled = true; btn.textContent = "Đang lưu…";
+    insertRow(T_ERRLOG, { code: code, error_type: errorType, reason: reason, staff: state.staffName || null }).then(function(){
+      btn.disabled = false; btn.textContent = "Ghi lại";
+      codeInput.value = ""; reasonInput.value = "";
+      showToast("errlog-toast","ok","Đã ghi nhận "+SHOP_ERROR_LABELS[errorType]+" cho mã "+code+".");
+      loadErrorLog();
+    }).catch(function(err){
+      btn.disabled = false; btn.textContent = "Ghi lại";
+      console.error(err);
+      showToast("errlog-toast","err","Lưu thất bại, thử lại.");
+    });
+  }
+  $("errlog-add").addEventListener("click", addErrorLogEntry);
+  $("errlog-reason").addEventListener("keydown", function(e){ if(e.key === "Enter"){ e.preventDefault(); addErrorLogEntry(); } });
+
+  // Cảnh báo ở mục 1 (Tích đơn hoàn) khi mã vận đơn đang gõ/quét trùng với 1 ca đã ghi ở Thống kê lỗi —
+  // chỉ để nhân viên biết cách xử lý, KHÔNG tự động gán vào "có vấn đề"; đơn vẫn tích bình thường.
+  var errorLogWarnTimer = null;
+  function checkErrorLogWarning(code){
+    var box = $("returns-errorlog-warn");
+    if(!code){ box.style.display = "none"; box.innerHTML = ""; return; }
+    clearTimeout(errorLogWarnTimer);
+    errorLogWarnTimer = setTimeout(function(){
+      sbGet(T_ERRLOG+"?code=eq."+encodeURIComponent(code)+"&order=created_at.desc").then(function(rows){
+        if($("returns-code").value.trim() !== code) return; // mã đã đổi trong lúc chờ — bỏ kết quả cũ
+        if(!rows.length){ box.style.display = "none"; box.innerHTML = ""; return; }
+        box.innerHTML = rows.map(function(e){
+          return '<div><b>⚠️ '+escapeHtml(SHOP_ERROR_LABELS[e.error_type]||e.error_type)+'</b> — '+escapeHtml(e.reason||"")+'</div>';
+        }).join("");
+        box.style.display = "flex";
+      }).catch(function(){});
+    }, 400);
+  }
+
   function renderDashOutstanding(outstandingRows){
     $("dash-outstanding-count").textContent = outstandingRows.length + " đơn";
     var el = $("dash-outstanding");
