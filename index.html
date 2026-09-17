@@ -141,12 +141,13 @@
   .kpi .foot.crit{ color:var(--crit-ink); }
   .kpi .foot.good{ color:var(--good-ink); }
   .kpi-compound{ grid-column:span 2; }
-  .kpi-compound .row{ display:flex; gap:14px; margin-top:2px; }
-  .kpi-compound .item{ flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
-  .kpi-compound .item .v{ font-family:"Sora"; font-size:21px; font-weight:700; line-height:1.05; }
-  .kpi-compound .item .v.warn{ color:var(--warn-ink); }
-  .kpi-compound .item .v.good{ color:var(--good-ink); }
-  .kpi-compound .item .k{ font-size:11px; color:var(--ink-3); }
+  .kpi-dots .dots{ display:flex; flex-wrap:wrap; gap:5px 16px; font-size:12px; color:var(--ink-2); margin-top:2px; }
+  .kpi-dots .dots b{ font-weight:700; margin-left:2px; }
+  .kpi-dots .dot{ display:inline-block; width:8px; height:8px; border-radius:50%; margin-right:5px; vertical-align:middle; }
+  .kpi-dots .dot-gray{ background:var(--ink-3); }
+  .kpi-dots .dot-good{ background:var(--good-ink); }
+  .kpi-dots .dot-crit{ background:var(--crit-ink); }
+  .kpi-dots .dot-warn{ background:var(--warn-ink); }
 
   .seg{ display:flex; gap:6px; flex-wrap:wrap; }
   .seg button{ border:1px solid var(--border); background:var(--surface); color:var(--ink-2); font-weight:600; font-size:12.5px;
@@ -1408,53 +1409,58 @@
     Promise.all([
       sbGet(T_RETURNS+"?scan_date=gte."+monthStart+"&scan_date=lte."+end+"&select=platform"),
       sbGet(T_OUTBOUND+"?scan_date=gte."+monthStart+"&scan_date=lte."+end+"&select=platform"),
-      sbGet(T_RETURNS+"?has_problem=eq.true&select=complaint_status"),
       sbGet(T_MATCH+"?status=eq.pending&select=platform,match_key,loai,updated_at&order=updated_at.asc"),
       surplusQuery,
-      sbGet(T_RETURNS+"?has_problem=eq.true&complaint_status=eq.submitted&scan_date=gte."+monthStart+"&scan_date=lte."+end+"&select=complaint_result"),
+      sbGet(T_RETURNS+"?has_problem=eq.true&scan_date=gte."+monthStart+"&scan_date=lte."+end+"&select=complaint_status,complaint_result"),
       sbGet(T_ERRLOG+"?created_at=gte."+monthStart+"T00:00:00&created_at=lte."+end+"T23:59:59&select=error_type")
     ]).then(function(results){
       var returnsRows = results[0];
       var outboundRows = results[1];
-      var complaintRows = results[2];
-      var outstandingRows = results[3];
-      var surplusRows = results[4];
-      var complaintResultRows = results[5];
-      var errLogMonthRows = results[6];
+      var outstandingRows = results[2];
+      var surplusRows = results[3];
+      var complaintMonthRows = results[4];
+      var errLogMonthRows = results[5];
 
       var t = 0, s = 0;
       returnsRows.forEach(function(e){ if(e.platform==="tiktok") t++; else if(e.platform==="shopee") s++; });
-      var openComplaints = complaintRows.filter(function(e){ return (e.complaint_status||"pending") !== "resolved"; }).length;
 
-      var crSuccess = 0, crFail = 0, crPending = 0;
-      complaintResultRows.forEach(function(e){
+      var notSent = 0, crSuccess = 0, crFail = 0, crPending = 0;
+      complaintMonthRows.forEach(function(e){
+        if(e.complaint_status !== "submitted"){ notSent++; return; }
         if(e.complaint_result === "thanh_cong") crSuccess++;
         else if(e.complaint_result === "that_bai") crFail++;
         else crPending++;
       });
+      var totalComplaints = complaintMonthRows.length;
+
       var errKhoVan = 0, errSanPham = 0;
       errLogMonthRows.forEach(function(e){
         if(e.error_type === "kho_van") errKhoVan++;
         else if(e.error_type === "san_pham") errSanPham++;
       });
+      var totalErrShop = errKhoVan + errSanPham;
 
-            var kpis = [
+      var kpis = [
         { lbl:"Số đơn hoàn (tháng này)", val: returnsRows.length, foot: t+" TikTok · "+s+" Shopee" },
-        { lbl:"Số đơn đi (tháng này)", val: outboundRows.length, foot:"Tổng cả hai sàn" },
-        { lbl:"Số đơn khiếu nại", val: openComplaints, foot: openComplaints>0 ? "Chưa xử lý xong" : "Không có đơn chờ", cls: openComplaints>0 ? "warn" : "good" }
+        { lbl:"Số đơn đi (tháng này)", val: outboundRows.length, foot:"Tổng cả hai sàn" }
       ];
       var tilesHtml = kpis.map(function(k){
         return '<div class="kpi"><span class="lbl">'+k.lbl+'</span><span class="val tabular">'+k.val+'</span><span class="foot '+(k.cls||"")+'">'+k.foot+'</span></div>';
       }).join("");
-      tilesHtml += '<div class="kpi kpi-compound"><span class="lbl">Kết quả khiếu nại (tháng này)</span><div class="row">' +
-          '<div class="item"><span class="v tabular">'+crSuccess+'</span><span class="k">Thành công</span></div>' +
-          '<div class="item"><span class="v tabular'+(crFail>0?" warn":"")+'">'+crFail+'</span><span class="k">Thất bại</span></div>' +
-          '<div class="item"><span class="v tabular'+(crPending>0?" warn":" good")+'">'+crPending+'</span><span class="k">Đang chờ kết quả</span></div>' +
-        '</div></div>';
-      tilesHtml += '<div class="kpi kpi-compound"><span class="lbl">Lỗi shop trong tháng</span><div class="row">' +
-          '<div class="item"><span class="v tabular">'+errKhoVan+'</span><span class="k">Kho vận</span></div>' +
-          '<div class="item"><span class="v tabular">'+errSanPham+'</span><span class="k">Sản phẩm</span></div>' +
-        '</div></div>';
+      tilesHtml += '<div class="kpi kpi-compound kpi-dots"><span class="lbl">Khiếu nại (tháng này)</span>' +
+          '<span class="val tabular">'+totalComplaints+'</span>' +
+          '<div class="dots">' +
+            '<span><span class="dot dot-gray"></span>Chưa gửi <b>'+notSent+'</b></span>' +
+            '<span><span class="dot dot-good"></span>Thành công <b>'+crSuccess+'</b></span>' +
+            '<span><span class="dot dot-crit"></span>Thất bại <b>'+crFail+'</b></span>' +
+            '<span><span class="dot dot-warn"></span>Đang chờ <b>'+crPending+'</b></span>' +
+          '</div></div>';
+      tilesHtml += '<div class="kpi kpi-compound kpi-dots"><span class="lbl">Lỗi shop trong tháng</span>' +
+          '<span class="val tabular">'+totalErrShop+'</span>' +
+          '<div class="dots">' +
+            '<span><span class="dot dot-gray"></span>Kho vận <b>'+errKhoVan+'</b></span>' +
+            '<span><span class="dot dot-warn"></span>Sản phẩm <b>'+errSanPham+'</b></span>' +
+          '</div></div>';
       kpiGrid.innerHTML = tilesHtml;
 
       renderDashOutstanding(outstandingRows);
