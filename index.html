@@ -140,6 +140,13 @@
   .kpi .foot.warn{ color:var(--warn-ink); }
   .kpi .foot.crit{ color:var(--crit-ink); }
   .kpi .foot.good{ color:var(--good-ink); }
+  .kpi-compound{ grid-column:span 2; }
+  .kpi-compound .row{ display:flex; gap:14px; margin-top:2px; }
+  .kpi-compound .item{ flex:1; min-width:0; display:flex; flex-direction:column; gap:2px; }
+  .kpi-compound .item .v{ font-family:"Sora"; font-size:21px; font-weight:700; line-height:1.05; }
+  .kpi-compound .item .v.warn{ color:var(--warn-ink); }
+  .kpi-compound .item .v.good{ color:var(--good-ink); }
+  .kpi-compound .item .k{ font-size:11px; color:var(--ink-3); }
 
   .seg{ display:flex; gap:6px; flex-wrap:wrap; }
   .seg button{ border:1px solid var(--border); background:var(--surface); color:var(--ink-2); font-weight:600; font-size:12.5px;
@@ -1431,19 +1438,24 @@
         else if(e.error_type === "san_pham") errSanPham++;
       });
 
-      var kpis = [
+            var kpis = [
         { lbl:"Số đơn hoàn (tháng này)", val: returnsRows.length, foot: t+" TikTok · "+s+" Shopee" },
         { lbl:"Số đơn đi (tháng này)", val: outboundRows.length, foot:"Tổng cả hai sàn" },
-        { lbl:"Số đơn khiếu nại", val: openComplaints, foot: openComplaints>0 ? "Chưa xử lý xong" : "Không có đơn chờ", cls: openComplaints>0 ? "warn" : "good" },
-        { lbl:"Khiếu nại - Thành công", val: crSuccess, foot:"Trong tháng này" },
-        { lbl:"Khiếu nại - Thất bại", val: crFail, foot:"Trong tháng này", cls: crFail>0 ? "warn" : "" },
-        { lbl:"Khiếu nại - Đang chờ kết quả", val: crPending, foot:"Trong tháng này", cls: crPending>0 ? "warn" : "good" },
-        { lbl:"Lỗi shop - Kho vận", val: errKhoVan, foot:"Trong tháng này" },
-        { lbl:"Lỗi shop - Sản phẩm", val: errSanPham, foot:"Trong tháng này" }
+        { lbl:"Số đơn khiếu nại", val: openComplaints, foot: openComplaints>0 ? "Chưa xử lý xong" : "Không có đơn chờ", cls: openComplaints>0 ? "warn" : "good" }
       ];
-      kpiGrid.innerHTML = kpis.map(function(k){
+      var tilesHtml = kpis.map(function(k){
         return '<div class="kpi"><span class="lbl">'+k.lbl+'</span><span class="val tabular">'+k.val+'</span><span class="foot '+(k.cls||"")+'">'+k.foot+'</span></div>';
       }).join("");
+      tilesHtml += '<div class="kpi kpi-compound"><span class="lbl">Kết quả khiếu nại (tháng này)</span><div class="row">' +
+          '<div class="item"><span class="v tabular">'+crSuccess+'</span><span class="k">Thành công</span></div>' +
+          '<div class="item"><span class="v tabular'+(crFail>0?" warn":"")+'">'+crFail+'</span><span class="k">Thất bại</span></div>' +
+          '<div class="item"><span class="v tabular'+(crPending>0?" warn":" good")+'">'+crPending+'</span><span class="k">Đang chờ kết quả</span></div>' +
+        '</div></div>';
+      tilesHtml += '<div class="kpi kpi-compound"><span class="lbl">Lỗi shop trong tháng</span><div class="row">' +
+          '<div class="item"><span class="v tabular">'+errKhoVan+'</span><span class="k">Kho vận</span></div>' +
+          '<div class="item"><span class="v tabular">'+errSanPham+'</span><span class="k">Sản phẩm</span></div>' +
+        '</div></div>';
+      kpiGrid.innerHTML = tilesHtml;
 
       renderDashOutstanding(outstandingRows);
       renderDashSurplus(surplusRows);
