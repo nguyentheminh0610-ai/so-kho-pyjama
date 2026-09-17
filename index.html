@@ -261,6 +261,8 @@
   select.status-sel.lost{ background:var(--crit-soft); color:var(--crit-ink); border-color:transparent; }
   select.status-sel.submitted{ background:var(--tiktok-soft); color:var(--tiktok); border-color:transparent; }
 
+  .daygrid-topscroll{ overflow-x:auto; overflow-y:hidden; height:14px; margin-bottom:2px; }
+  .daygrid-topscroll > div{ height:1px; }
   .daygrid{ display:flex; gap:8px; overflow-x:auto; padding-bottom:6px; }
   .daycol{ flex:0 0 130px; border:1px solid var(--border-soft); border-radius:10px; background:var(--surface-2); }
   .daycol.today{ border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; }
@@ -452,29 +454,7 @@
       <p class="sub">Kho đã tích nhận nhưng không thấy trong dữ liệu sàn báo hoàn (cùng 3 kỳ báo cáo ở trên) — có thể do quét nhầm mã, sàn chưa cập nhật, hoặc cần kiểm tra lại. Sửa/xoá tại mục 4. Danh sách. Bấm "Đối chiếu với sàn" ở trên để cập nhật.</p>
       <div id="dash-surplus"><div class="empty-state">Đang tải…</div></div>
     </div>
-      <div class="card">
-      <div class="card-head">
-        <h2>Kết quả khiếu nại</h2>
-        <span class="sub" style="margin:0;">Trong tháng đang xem ở KPI phía trên</span>
-      </div>
-      <p class="sub">Chỉ tính các đơn có vấn đề đã gửi khiếu nại (mục 4. Danh sách). Đơn chưa ghi kết quả tính là "Đang chờ kết quả".</p>
-      <div class="kpi-grid" style="margin-top:0;">
-        <div class="kpi"><span class="lbl">Thành công</span><span class="val tabular" id="dash-cr-success">—</span></div>
-        <div class="kpi"><span class="lbl">Thất bại</span><span class="val tabular" id="dash-cr-fail">—</span></div>
-        <div class="kpi"><span class="lbl">Đang chờ kết quả</span><span class="val tabular" id="dash-cr-pending">—</span></div>
-      </div>
-    </div>
-    <div class="card">
-      <div class="card-head">
-        <h2>Lỗi shop trong tháng</h2>
-        <span class="sub" style="margin:0;">Từ mục 5. Thống kê lỗi</span>
-      </div>
-      <div class="kpi-grid" style="margin-top:0;">
-        <div class="kpi"><span class="lbl">Lỗi shop - Kho vận</span><span class="val tabular" id="dash-err-khovan">—</span></div>
-        <div class="kpi"><span class="lbl">Lỗi shop - Sản phẩm</span><span class="val tabular" id="dash-err-sanpham">—</span></div>
-      </div>
-    </div>
-</section>
+  </section>
 
   <!-- ================= 4. LISTS (Danh sách) ================= -->
   <section class="panel" id="panel-lists" hidden>
@@ -534,6 +514,7 @@
           <button class="btn ghost small" id="outlist-refresh">Làm mới</button>
         </div>
         <p class="hint" style="margin:0 0 10px;">Mỗi cột là 1 ngày, xếp từ trái sang phải — cuộn ngang để xem hết. Gõ mã vào ô tìm kiếm để lọc nhanh.</p>
+        <div class="daygrid-topscroll" id="outlist-topscroll"><div id="outlist-topscroll-inner"></div></div>
         <div class="daygrid" id="outlist-daygrid"><div class="empty-state">Đang tải…</div></div>
       </div>
     </div>
@@ -1434,45 +1415,42 @@
       var complaintResultRows = results[5];
       var errLogMonthRows = results[6];
 
-
       var t = 0, s = 0;
       returnsRows.forEach(function(e){ if(e.platform==="tiktok") t++; else if(e.platform==="shopee") s++; });
       var openComplaints = complaintRows.filter(function(e){ return (e.complaint_status||"pending") !== "resolved"; }).length;
 
-      var kpis = [
-        { lbl:"Số đơn hoàn (tháng này)", val: returnsRows.length, foot: t+" TikTok · "+s+" Shopee" },
-        { lbl:"Số đơn đi (tháng này)", val: outboundRows.length, foot:"Tổng cả hai sàn" },
-        { lbl:"Số đơn khiếu nại", val: openComplaints, foot: openComplaints>0 ? "Chưa xử lý xong" : "Không có đơn chờ", cls: openComplaints>0 ? "warn" : "good" }
-      ];
-      kpiGrid.innerHTML = kpis.map(function(k){
-        return '<div class="kpi"><span class="lbl">'+k.lbl+'</span><span class="val tabular">'+k.val+'</span><span class="foot '+(k.cls||"")+'">'+k.foot+'</span></div>';
-      }).join("");
-
-      
       var crSuccess = 0, crFail = 0, crPending = 0;
       complaintResultRows.forEach(function(e){
         if(e.complaint_result === "thanh_cong") crSuccess++;
         else if(e.complaint_result === "that_bai") crFail++;
         else crPending++;
       });
-      $("dash-cr-success").textContent = crSuccess;
-      $("dash-cr-fail").textContent = crFail;
-      $("dash-cr-pending").textContent = crPending;
-
       var errKhoVan = 0, errSanPham = 0;
       errLogMonthRows.forEach(function(e){
         if(e.error_type === "kho_van") errKhoVan++;
         else if(e.error_type === "san_pham") errSanPham++;
       });
-      $("dash-err-khovan").textContent = errKhoVan;
-      $("dash-err-sanpham").textContent = errSanPham;
 
-renderDashOutstanding(outstandingRows);
+      var kpis = [
+        { lbl:"Số đơn hoàn (tháng này)", val: returnsRows.length, foot: t+" TikTok · "+s+" Shopee" },
+        { lbl:"Số đơn đi (tháng này)", val: outboundRows.length, foot:"Tổng cả hai sàn" },
+        { lbl:"Số đơn khiếu nại", val: openComplaints, foot: openComplaints>0 ? "Chưa xử lý xong" : "Không có đơn chờ", cls: openComplaints>0 ? "warn" : "good" },
+        { lbl:"Khiếu nại - Thành công", val: crSuccess, foot:"Trong tháng này" },
+        { lbl:"Khiếu nại - Thất bại", val: crFail, foot:"Trong tháng này", cls: crFail>0 ? "warn" : "" },
+        { lbl:"Khiếu nại - Đang chờ kết quả", val: crPending, foot:"Trong tháng này", cls: crPending>0 ? "warn" : "good" },
+        { lbl:"Lỗi shop - Kho vận", val: errKhoVan, foot:"Trong tháng này" },
+        { lbl:"Lỗi shop - Sản phẩm", val: errSanPham, foot:"Trong tháng này" }
+      ];
+      kpiGrid.innerHTML = kpis.map(function(k){
+        return '<div class="kpi"><span class="lbl">'+k.lbl+'</span><span class="val tabular">'+k.val+'</span><span class="foot '+(k.cls||"")+'">'+k.foot+'</span></div>';
+      }).join("");
+
+      renderDashOutstanding(outstandingRows);
       renderDashSurplus(surplusRows);
       updateListsBadge();
     }).catch(function(err){ console.error("dashboard load error", err); });
   }
-  function runManualReconcile(){
+function runManualReconcile(){
     var btn = $("dash-reconcile-btn");
     var statusEl = $("dash-recon-status");
     if(!state.connected){ statusEl.textContent = "Chưa kết nối được dữ liệu, thử lại sau."; return; }
@@ -1907,6 +1885,7 @@ renderDashOutstanding(outstandingRows);
     var days = q ? outlistCache.days.filter(function(d){ return (byDate[d] || []).length > 0; }) : outlistCache.days;
     if(q && !days.length){
       grid.innerHTML = '<div class="empty-state">Không tìm thấy mã đơn nào khớp “'+escapeHtml($("outlist-search").value.trim())+'”.</div>';
+      syncOutlistTopScroll();
       return;
     }
     grid.innerHTML = days.map(function(d){
@@ -1925,9 +1904,36 @@ renderDashOutstanding(outstandingRows);
       var todayCol = grid.querySelector(".daycol.today");
       if(todayCol) todayCol.scrollIntoView({ inline: "end", block: "nearest" });
     }
+    syncOutlistTopScroll();
   }
 
-  /* ---------------- init ---------------- */
+    // Thanh kéo ngang phụ đặt ngay trên lưới "Đơn đi" — đồng bộ 2 chiều với lưới, để không phải
+  // cuộn xuống cuối bảng (nhiều khi rất dài) mới kéo ngang được.
+  function syncOutlistTopScroll(){
+    var grid = $("outlist-daygrid");
+    var inner = $("outlist-topscroll-inner");
+    inner.style.width = grid.scrollWidth + "px";
+    if(grid.scrollLeft > 0) $("outlist-topscroll").scrollLeft = grid.scrollLeft;
+  }
+
+  /* ---------------- outlist top scroll sync ---------------- */
+  (function(){
+    var top = $("outlist-topscroll");
+    var grid = $("outlist-daygrid");
+    var syncing = false;
+    top.addEventListener("scroll", function(){
+      if(syncing) return; syncing = true;
+      grid.scrollLeft = top.scrollLeft;
+      syncing = false;
+    });
+    grid.addEventListener("scroll", function(){
+      if(syncing) return; syncing = true;
+      top.scrollLeft = grid.scrollLeft;
+      syncing = false;
+    });
+  })();
+
+/* ---------------- init ---------------- */
   setTab("returns");
   initConn();
 })();
