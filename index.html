@@ -452,7 +452,29 @@
       <p class="sub">Kho đã tích nhận nhưng không thấy trong dữ liệu sàn báo hoàn (cùng 3 kỳ báo cáo ở trên) — có thể do quét nhầm mã, sàn chưa cập nhật, hoặc cần kiểm tra lại. Sửa/xoá tại mục 4. Danh sách. Bấm "Đối chiếu với sàn" ở trên để cập nhật.</p>
       <div id="dash-surplus"><div class="empty-state">Đang tải…</div></div>
     </div>
-  </section>
+      <div class="card">
+      <div class="card-head">
+        <h2>Kết quả khiếu nại</h2>
+        <span class="sub" style="margin:0;">Trong tháng đang xem ở KPI phía trên</span>
+      </div>
+      <p class="sub">Chỉ tính các đơn có vấn đề đã gửi khiếu nại (mục 4. Danh sách). Đơn chưa ghi kết quả tính là "Đang chờ kết quả".</p>
+      <div class="kpi-grid" style="margin-top:0;">
+        <div class="kpi"><span class="lbl">Thành công</span><span class="val tabular" id="dash-cr-success">—</span></div>
+        <div class="kpi"><span class="lbl">Thất bại</span><span class="val tabular" id="dash-cr-fail">—</span></div>
+        <div class="kpi"><span class="lbl">Đang chờ kết quả</span><span class="val tabular" id="dash-cr-pending">—</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-head">
+        <h2>Lỗi shop trong tháng</h2>
+        <span class="sub" style="margin:0;">Từ mục 5. Thống kê lỗi</span>
+      </div>
+      <div class="kpi-grid" style="margin-top:0;">
+        <div class="kpi"><span class="lbl">Lỗi shop - Kho vận</span><span class="val tabular" id="dash-err-khovan">—</span></div>
+        <div class="kpi"><span class="lbl">Lỗi shop - Sản phẩm</span><span class="val tabular" id="dash-err-sanpham">—</span></div>
+      </div>
+    </div>
+</section>
 
   <!-- ================= 4. LISTS (Danh sách) ================= -->
   <section class="panel" id="panel-lists" hidden>
@@ -490,9 +512,9 @@
         <div class="twrap">
           <table>
             <thead><tr>
-              <th>Mã vận đơn</th><th>Sàn</th><th>Khiếu nại</th><th></th>
+              <th>Mã vận đơn</th><th>Sàn</th><th>Khiếu nại</th><th>Kết quả khiếu nại</th><th></th>
             </tr></thead>
-            <tbody id="review-body"><tr class="empty-row"><td colspan="4">Đang tải…</td></tr></tbody>
+            <tbody id="review-body"><tr class="empty-row"><td colspan="5">Đang tải…</td></tr></tbody>
           </table>
         </div>
       </div>
@@ -583,6 +605,7 @@
     san_pham: "Lỗi shop - Sản phẩm"
   };
   var STATUS_LABELS = { none:"Không cần", pending:"Chờ xử lý", submitted:"Đã gửi khiếu nại", resolved:"Đã xử lý xong", lost:"Xác nhận thất lạc" };
+  var COMPLAINT_RESULT_LABELS = { thanh_cong:"Thành công", that_bai:"Thất bại" };
   var RTYPE_LABELS = { boom:"Huỷ / Bom hàng", doi_tra:"Hoàn trả" };
   var RECON_PERIODS = 3; // gộp 3 kỳ báo cáo gần nhất khi đối chiếu tự động
 
@@ -1399,13 +1422,18 @@
       sbGet(T_OUTBOUND+"?scan_date=gte."+monthStart+"&scan_date=lte."+end+"&select=platform"),
       sbGet(T_RETURNS+"?has_problem=eq.true&select=complaint_status"),
       sbGet(T_MATCH+"?status=eq.pending&select=platform,match_key,loai,updated_at&order=updated_at.asc"),
-      surplusQuery
+      surplusQuery,
+      sbGet(T_RETURNS+"?has_problem=eq.true&complaint_status=eq.submitted&scan_date=gte."+monthStart+"&scan_date=lte."+end+"&select=complaint_result"),
+      sbGet(T_ERRLOG+"?created_at=gte."+monthStart+"T00:00:00&created_at=lte."+end+"T23:59:59&select=error_type")
     ]).then(function(results){
       var returnsRows = results[0];
       var outboundRows = results[1];
       var complaintRows = results[2];
       var outstandingRows = results[3];
       var surplusRows = results[4];
+      var complaintResultRows = results[5];
+      var errLogMonthRows = results[6];
+
 
       var t = 0, s = 0;
       returnsRows.forEach(function(e){ if(e.platform==="tiktok") t++; else if(e.platform==="shopee") s++; });
@@ -1420,7 +1448,26 @@
         return '<div class="kpi"><span class="lbl">'+k.lbl+'</span><span class="val tabular">'+k.val+'</span><span class="foot '+(k.cls||"")+'">'+k.foot+'</span></div>';
       }).join("");
 
-      renderDashOutstanding(outstandingRows);
+      
+      var crSuccess = 0, crFail = 0, crPending = 0;
+      complaintResultRows.forEach(function(e){
+        if(e.complaint_result === "thanh_cong") crSuccess++;
+        else if(e.complaint_result === "that_bai") crFail++;
+        else crPending++;
+      });
+      $("dash-cr-success").textContent = crSuccess;
+      $("dash-cr-fail").textContent = crFail;
+      $("dash-cr-pending").textContent = crPending;
+
+      var errKhoVan = 0, errSanPham = 0;
+      errLogMonthRows.forEach(function(e){
+        if(e.error_type === "kho_van") errKhoVan++;
+        else if(e.error_type === "san_pham") errSanPham++;
+      });
+      $("dash-err-khovan").textContent = errKhoVan;
+      $("dash-err-sanpham").textContent = errSanPham;
+
+renderDashOutstanding(outstandingRows);
       renderDashSurplus(surplusRows);
       updateListsBadge();
     }).catch(function(err){ console.error("dashboard load error", err); });
@@ -1670,7 +1717,7 @@
 
   function loadListsReturns(){
     var body = $("review-body");
-    body.innerHTML = '<tr class="empty-row"><td colspan="4">Đang tải…</td></tr>';
+    body.innerHTML = '<tr class="empty-row"><td colspan="5">Đang tải…</td></tr>';
     listsReturnsEditingCode = null;
     var range = rangeFromSelect($("review-range").value, $("review-month").value);
     var typeFilter = $("review-type-filter").value;
@@ -1688,7 +1735,7 @@
       renderListsReturnsFiltered();
       updateListsBadge();
     }).catch(function(err){
-      body.innerHTML = '<tr class="empty-row"><td colspan="4">Không tải được dữ liệu.</td></tr>';
+      body.innerHTML = '<tr class="empty-row"><td colspan="5">Không tải được dữ liệu.</td></tr>';
       console.error(err);
     });
   }
@@ -1698,32 +1745,43 @@
     var rows = q ? listsReturnsCache.filter(function(e){ return (e.code||"").toLowerCase().indexOf(q) >= 0; }) : listsReturnsCache;
     renderListsReturns(rows);
   }
-  function renderListsReturns(rows){
+    function renderListsReturns(rows){
     var body = $("review-body");
-    if(!rows.length){ body.innerHTML = '<tr class="empty-row"><td colspan="4">Không có đơn nào phù hợp bộ lọc.</td></tr>'; return; }
+    if(!rows.length){ body.innerHTML = '<tr class="empty-row"><td colspan="5">Không có đơn nào phù hợp bộ lọc.</td></tr>'; return; }
     var groups = groupByDate(rows);
     body.innerHTML = groups.map(function(g){
-      var head = '<tr class="day-group-row"><td colspan="4">'+dayLabel(g.date)+'<span class="day-count">· '+g.items.length+' đơn</span></td></tr>';
+      var head = '<tr class="day-group-row"><td colspan="5">'+dayLabel(g.date)+'<span class="day-count">· '+g.items.length+' đơn</span></td></tr>';
       var itemsHtml = g.items.map(function(e){
+        var isSubmitted = e.complaint_status === "submitted";
         var complaintCell = e.has_problem
           ? '<select class="status-sel review-complaint" data-code="'+escapeHtml(e.code)+'">' +
-              ["pending","submitted","resolved"].map(function(s){
+              ["pending","submitted"].map(function(s){
                 return '<option value="'+s+'"'+((e.complaint_status||"pending")===s?" selected":"")+'>'+STATUS_LABELS[s]+'</option>';
               }).join("") +
             '</select>'
+          : '<span style="color:var(--ink-3);">—</span>';
+        var resultCell = e.has_problem
+          ? '<select class="status-sel review-complaint-result" data-code="'+escapeHtml(e.code)+'"'+(isSubmitted?"":" hidden disabled")+'>' +
+              ["","thanh_cong","that_bai"].map(function(v){
+                var label = v==="" ? "— Chưa có kết quả —" : COMPLAINT_RESULT_LABELS[v];
+                return '<option value="'+v+'"'+((e.complaint_result||"")===v?" selected":"")+'>'+label+'</option>';
+              }).join("") +
+            '</select>' +
+            '<span class="ink3 result-placeholder" style="color:var(--ink-3);"'+(isSubmitted?" hidden":"")+'>—</span>'
           : '<span style="color:var(--ink-3);">—</span>';
         var isEditing = listsReturnsEditingCode === e.code;
         var rowHtml = '<tr class="'+(e.has_problem?"problem-row":"")+'" data-code="'+escapeHtml(e.code)+'">' +
           '<td class="mono">'+escapeHtml(e.code)+'</td>' +
           '<td><span class="pill pill-'+e.platform+'">'+PLATFORMS[e.platform]+'</span></td>' +
           '<td class="review-cell">'+complaintCell+'</td>' +
+          '<td class="review-cell">'+resultCell+'</td>' +
           '<td><button class="review-save review-edit-btn" data-code="'+escapeHtml(e.code)+'">'+(isEditing?"Huỷ":"Sửa")+'</button></td>' +
         '</tr>';
         if(isEditing){
           var reasonOpts = ["hu_hong","sai_hang"].map(function(k){
             return '<option value="'+k+'"'+((e.problem_type||"hu_hong")===k?" selected":"")+'>'+PROBLEM_LABELS[k]+'</option>';
           }).join("");
-          rowHtml += '<tr class="edit-row"><td colspan="4"><div class="edit-row-inner">' +
+          rowHtml += '<tr class="edit-row"><td colspan="5"><div class="edit-row-inner">' +
               '<label class="checkline" style="margin-top:0;"><input type="checkbox" class="edit-has-problem"'+(e.has_problem?" checked":"")+'/><span>Đơn này có vấn đề</span></label>' +
               '<select class="edit-problem-type"'+(e.has_problem?"":" hidden")+'>'+reasonOpts+'</select>' +
               '<button class="review-save edit-save-btn" data-code="'+escapeHtml(e.code)+'">Lưu</button>' +
@@ -1744,10 +1802,34 @@
           sel.disabled = false;
           var row = listsReturnsCache.filter(function(r){ return r.code === code; })[0];
           if(row) row.complaint_status = val;
+          var tr = sel.closest("tr");
+          var isSubmitted = val === "submitted";
+          var resultSel = tr.querySelector(".review-complaint-result");
+          var resultPh = tr.querySelector(".result-placeholder");
+          if(resultSel){ resultSel.hidden = !isSubmitted; resultSel.disabled = !isSubmitted; }
+          if(resultPh){ resultPh.hidden = isSubmitted; }
         }).catch(function(err){
           sel.disabled = false;
           console.error(err);
           alert("Lưu khiếu nại thất bại, thử lại.");
+        });
+      });
+    });
+
+    // Kết quả khiếu nại (Thành công/Thất bại) cũng tự lưu ngay khi đổi.
+    body.querySelectorAll(".review-complaint-result").forEach(function(sel){
+      sel.addEventListener("change", function(){
+        var code = sel.getAttribute("data-code");
+        var val = sel.value || null;
+        sel.disabled = true;
+        patchByCode(T_RETURNS, code, { complaint_result: val }).then(function(){
+          sel.disabled = false;
+          var row = listsReturnsCache.filter(function(r){ return r.code === code; })[0];
+          if(row) row.complaint_result = val;
+        }).catch(function(err){
+          sel.disabled = false;
+          console.error(err);
+          alert("Lưu kết quả khiếu nại thất bại, thử lại.");
         });
       });
     });
@@ -1778,6 +1860,7 @@
           problem_type: hasProblem ? problemType : null,
           complaint_status: hasProblem ? ((row && row.complaint_status && row.complaint_status !== "none") ? row.complaint_status : "pending") : "none"
         };
+        if(!hasProblem) fields.complaint_result = null;
         btn.disabled = true; btn.textContent = "Đang lưu…";
         patchByCode(T_RETURNS, code, fields).then(function(){
           loadListsReturns();
