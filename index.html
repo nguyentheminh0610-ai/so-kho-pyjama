@@ -341,7 +341,10 @@
   <div class="notice-board" id="notice-board" hidden>
     <div class="notice-board-head">
       <h2>📌 Việc cần làm <span class="n" id="notice-count" hidden>0</span></h2>
-      <button type="button" class="btn ghost small" id="notice-add-toggle" style="width:auto;">+ Thêm việc</button>
+      <div style="display:flex; gap:8px; flex-wrap:wrap;">
+        <button type="button" class="btn ghost small" id="notice-history-toggle" style="width:auto;">Xem lịch sử</button>
+        <button type="button" class="btn ghost small" id="notice-add-toggle" style="width:auto;">+ Thêm việc</button>
+      </div>
     </div>
     <p class="notice-empty" id="notice-empty" hidden>Không có việc nào đang chờ.</p>
     <div class="notice-add-form" id="notice-add-form" hidden>
@@ -369,6 +372,15 @@
       <h2>📌 Việc cần làm</h2>
       <p class="notice-popup-sub">Bấm "Đã xong" khi xử lý xong, hoặc bấm ✕ để thu gọn xuống đầu trang.</p>
       <div id="notice-popup-list"></div>
+    </div>
+  </div>
+
+  <div class="notice-popup-overlay" id="notice-history-overlay" hidden>
+    <div class="notice-popup-box">
+      <button type="button" class="notice-popup-close" id="notice-history-close" aria-label="Đóng">✕</button>
+      <h2>🕘 Lịch sử việc cần làm (7 ngày)</h2>
+      <p class="notice-popup-sub">Toàn bộ việc đã note trong 7 ngày gần nhất, cả đã xong và chưa xong.</p>
+      <div id="notice-history-list"></div>
     </div>
   </div>
 
@@ -1033,6 +1045,52 @@
   $("notice-popup-overlay").addEventListener("click", function(e){
     if(e.target === $("notice-popup-overlay")) closeNoticePopup();
   });
+
+  function fmtDateTime(iso){
+    var d = new Date(iso);
+    if(isNaN(d.getTime())) return "";
+    function pad(n){ return n < 10 ? "0"+n : ""+n; }
+    return pad(d.getDate())+"/"+pad(d.getMonth()+1)+"/"+d.getFullYear()+" "+pad(d.getHours())+":"+pad(d.getMinutes());
+  }
+  function noticeHistoryItemHtml(n){
+    var status = n.done
+      ? '<span class="badge resolved">Đã hoàn thành</span>'
+      : '<span class="badge pending" style="background:var(--warn-soft);color:var(--warn-ink);">Chưa hoàn thành</span>';
+    var actions = "";
+    if(n.link_url) actions += '<a class="btn ghost small" href="'+escapeHtml(n.link_url)+'" target="_blank" rel="noopener" style="width:auto;">Mở link đơn hàng</a>';
+    if(n.pdf_path) actions += '<a class="btn ghost small" href="'+noticePdfUrl(n.pdf_path)+'" target="_blank" rel="noopener" style="width:auto;">Xem PDF</a>';
+    return '<div class="notice-item">' +
+      '<p class="notice-content">'+noticeDisplayLine(n)+'</p>' +
+      '<p class="notice-empty" style="margin:0 0 6px;">'+fmtDateTime(n.created_at)+' — '+status+'</p>' +
+      (actions ? '<div class="notice-actions">'+actions+'</div>' : '') +
+    '</div>';
+  }
+  function loadNoticeHistory(){
+    if(!state.connected) return;
+    var since = new Date(Date.now() - 7*24*60*60*1000).toISOString();
+    sbGet(T_NOTICES+"?created_at=gte."+encodeURIComponent(since)+"&order=created_at.desc&select=*").then(function(rows){
+      var list = $("notice-history-list");
+      if(!rows.length){
+        list.innerHTML = '<p class="notice-empty">Không có việc nào trong 7 ngày gần đây.</p>';
+        return;
+      }
+      list.innerHTML = rows.map(noticeHistoryItemHtml).join("");
+    }).catch(function(err){
+      console.error("load notice history error", err);
+      $("notice-history-list").innerHTML = '<p class="notice-empty">Tải lịch sử thất bại, thử lại.</p>';
+    });
+  }
+  $("notice-history-toggle").addEventListener("click", function(){
+    $("notice-history-overlay").hidden = false;
+    loadNoticeHistory();
+  });
+  $("notice-history-close").addEventListener("click", function(){
+    $("notice-history-overlay").hidden = true;
+  });
+  $("notice-history-overlay").addEventListener("click", function(e){
+    if(e.target === $("notice-history-overlay")) $("notice-history-overlay").hidden = true;
+  });
+
   $("notice-add-toggle").addEventListener("click", function(){
     var form = $("notice-add-form");
     form.hidden = !form.hidden;
