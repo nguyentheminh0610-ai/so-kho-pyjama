@@ -345,7 +345,14 @@
     </div>
     <p class="notice-empty" id="notice-empty" hidden>Không có việc nào đang chờ.</p>
     <div class="notice-add-form" id="notice-add-form" hidden>
-      <textarea id="notice-content" placeholder="Nội dung việc cần làm…" rows="2"></textarea>
+      <div class="filter-row">
+        <select id="notice-category" style="flex:1; min-width:160px;">
+          <option value="gui_don_bu">Gửi đơn bù</option>
+          <option value="thong_bao_chung">Thông báo chung</option>
+        </select>
+        <input type="text" id="notice-order-code" placeholder="Mã đơn hàng/mã vận đơn — không bắt buộc" style="flex:1; min-width:200px;" />
+      </div>
+      <textarea id="notice-content" placeholder="Nội dung việc cần làm…" rows="2" style="margin-top:8px;"></textarea>
       <div class="filter-row" style="margin-top:8px;">
         <input type="text" id="notice-link" placeholder="Link đơn hàng (Sapo/SPX…) — không bắt buộc" style="flex:1; min-width:200px;" />
         <input type="file" id="notice-pdf" accept="application/pdf" />
@@ -956,13 +963,21 @@
       }
     }).catch(function(err){ console.error("load notices error", err); });
   }
+  var NOTICE_CATEGORY_LABEL = { gui_don_bu:"Gửi đơn bù", thong_bao_chung:"Thông báo chung" };
+  function noticeDisplayLine(n){
+    var parts = [];
+    if(n.category) parts.push(NOTICE_CATEGORY_LABEL[n.category] || n.category);
+    if(n.order_code) parts.push(n.order_code);
+    parts.push(n.content);
+    return parts.map(escapeHtml).join(" - ");
+  }
   function noticeItemHtml(n){
     var actions = "";
     if(n.link_url) actions += '<a class="btn ghost small" href="'+escapeHtml(n.link_url)+'" target="_blank" rel="noopener" style="width:auto;">Mở link đơn hàng</a>';
     if(n.pdf_path) actions += '<a class="btn ghost small" href="'+noticePdfUrl(n.pdf_path)+'" target="_blank" rel="noopener" style="width:auto;">Xem PDF</a>';
     actions += '<button type="button" class="btn small notice-done-btn" data-id="'+n.id+'" style="width:auto;">Đã xong</button>';
     return '<div class="notice-item" data-id="'+n.id+'">' +
-      '<p class="notice-content">'+escapeHtml(n.content)+'</p>' +
+      '<p class="notice-content">'+noticeDisplayLine(n)+'</p>' +
       '<div class="notice-actions">'+actions+'</div>' +
     '</div>';
   }
@@ -1023,6 +1038,10 @@
     form.hidden = !form.hidden;
   });
   function addNotice(){
+    var categoryInput = $("notice-category");
+    var category = categoryInput.value;
+    var orderCodeInput = $("notice-order-code");
+    var orderCode = orderCodeInput.value.trim();
     var contentInput = $("notice-content");
     var content = contentInput.value.trim();
     var linkInput = $("notice-link");
@@ -1034,10 +1053,10 @@
     btn.disabled = true; btn.textContent = "Đang lưu…";
     var uploadPromise = file ? uploadNoticePdf(file) : Promise.resolve(null);
     uploadPromise.then(function(pdfPath){
-      return insertRow(T_NOTICES, { content: content, link_url: link || null, pdf_path: pdfPath, staff: state.staffName || null });
+      return insertRow(T_NOTICES, { category: category, order_code: orderCode || null, content: content, link_url: link || null, pdf_path: pdfPath, staff: state.staffName || null });
     }).then(function(){
       btn.disabled = false; btn.textContent = "Lưu việc cần làm";
-      contentInput.value = ""; linkInput.value = ""; fileInput.value = "";
+      contentInput.value = ""; linkInput.value = ""; fileInput.value = ""; orderCodeInput.value = ""; categoryInput.value = "gui_don_bu";
       showToast("notice-toast","ok","Đã lưu việc cần làm.");
       $("notice-add-form").hidden = true;
       loadNotices();
