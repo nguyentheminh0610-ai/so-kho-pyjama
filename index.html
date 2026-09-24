@@ -148,6 +148,17 @@
   .kpi-dots .dot-good{ background:var(--good-ink); }
   .kpi-dots .dot-crit{ background:var(--crit-ink); }
   .kpi-dots .dot-warn{ background:var(--warn-ink); }
+  .notice-board{ background:var(--warn-soft); border:1px solid var(--warn); border-radius:var(--radius); padding:14px 16px; margin-bottom:14px; }
+  .notice-board-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+  .notice-board-head h2{ font-size:14px; margin:0; display:flex; align-items:center; gap:6px; }
+  .notice-empty{ font-size:12.5px; color:var(--ink-2); margin:8px 0 0; }
+  .notice-add-form{ margin-top:10px; padding-top:10px; border-top:1px solid var(--border-soft); }
+  .notice-add-form textarea{ width:100%; resize:vertical; font:inherit; padding:8px 10px; border-radius:8px; border:1px solid var(--border-soft); background:var(--surface); color:var(--ink); }
+  .notice-item{ background:var(--surface); border:1px solid var(--border-soft); border-radius:10px; padding:10px 12px; margin-top:10px; }
+  .notice-item .notice-content{ margin:0 0 8px; white-space:pre-wrap; font-size:13px; }
+  .notice-actions{ display:flex; gap:8px; flex-wrap:wrap; }
+
+
 
   .seg{ display:flex; gap:6px; flex-wrap:wrap; }
   .seg button{ border:1px solid var(--border); background:var(--surface); color:var(--ink-2); font-weight:600; font-size:12.5px;
@@ -319,6 +330,25 @@
   </div>
 
   <p id="conn-msg"></p>
+
+  <div class="notice-board" id="notice-board" hidden>
+    <div class="notice-board-head">
+      <h2>📌 Việc cần làm <span class="n" id="notice-count" hidden>0</span></h2>
+      <button type="button" class="btn ghost small" id="notice-add-toggle" style="width:auto;">+ Thêm việc</button>
+    </div>
+    <p class="notice-empty" id="notice-empty" hidden>Không có việc nào đang chờ.</p>
+    <div class="notice-add-form" id="notice-add-form" hidden>
+      <textarea id="notice-content" placeholder="Nội dung việc cần làm…" rows="2"></textarea>
+      <div class="filter-row" style="margin-top:8px;">
+        <input type="text" id="notice-link" placeholder="Link đơn hàng (Sapo/SPX…) — không bắt buộc" style="flex:1; min-width:200px;" />
+        <input type="file" id="notice-pdf" accept="application/pdf" />
+      </div>
+      <div class="toast" id="notice-toast"></div>
+      <button type="button" class="btn small" id="notice-save" style="width:auto; margin-top:8px;">Lưu việc cần làm</button>
+    </div>
+    <div id="notice-list"></div>
+  </div>
+
 
   <nav class="tabnav" id="tabnav">
     <button data-tab="returns" class="active">1. Tích đơn hoàn</button>
@@ -579,6 +609,7 @@
   var T_MATCH = "warehouse_return_match_status";
   var T_REPORTS = "monthly_reports"; // sở hữu bởi Sổ Vận Hành — chỉ đọc
   var T_ERRLOG = "warehouse_error_log"; // sổ "Thống kê lỗi" — quản lý ghi tay, độc lập với warehouse_return_checks
+  var T_NOTICES = "warehouse_notices"; // "Việc cần làm" — banner nhắc việc, hiện ở mọi tab
 
   var PLATFORMS = { tiktok: "TikTok Shop", shopee: "Shopee" };
   var PLATFORM_TO_SANPHAM = { tiktok: "TikTok", shopee: "Shopee" }; // giá trị field `sanPham` trong hoanVeKhoDetail
@@ -734,6 +765,27 @@
       return true;
     });
   }
+  function patchById(table, id, fields){
+    return fetch(sbUrl(table+"?id=eq."+encodeURIComponent(id)), {
+      method:"PATCH", headers: sbHeaders({ "Prefer":"return=representation" }), body: JSON.stringify(fields)
+    }).then(function(res){
+      if(!res.ok) return res.text().then(function(t){ throw new Error("HTTP "+res.status+": "+t); });
+      return res.json();
+    });
+  }
+  // Upload file PDF lên Supabase Storage (bucket notices-pdf, công khai), trả về đường dẫn lưu trong bảng.
+  function uploadNoticePdf(file){
+    var safeName = Date.now()+"-"+file.name.replace(/[^a-zA-Z0-9._-]/g,"_");
+    return fetch(SUPABASE_URL+"/storage/v1/object/notices-pdf/"+encodeURIComponent(safeName), {
+      method:"POST",
+      headers: { "apikey": SUPABASE_ANON_KEY, "Authorization":"Bearer "+SUPABASE_ANON_KEY, "Content-Type": file.type || "application/pdf" },
+      body: file
+    }).then(function(res){
+      if(!res.ok) return res.text().then(function(t){ throw new Error("HTTP "+res.status+": "+t); });
+      return safeName;
+    });
+  }
+  function noticePdfUrl(path){ return SUPABASE_URL+"/storage/v1/object/public/notices-pdf/"+encodeURIComponent(path); }
   function markMatched(table, codes){
     if(!codes || !codes.length) return Promise.resolve();
     var chunks = [];
@@ -869,7 +921,111 @@
   });
   staffInput.addEventListener("keydown", function(e){ if(e.key === "Enter"){ $("staff-save").click(); } });
 
-  /* ---------------- tab nav ---------------- */
+    /* ---------------- notice board (Việc cần làm) ---------------- */
+  // Banner cố định, hiện ở mọi tab — quản lý ghi việc cần làm (kèm link đơn hàng và/hoặc file PDF tuỳ chọn),
+  // nhân viên mở sổ kho lên là thấy ngay. "Đã xong" lưu vào hệ thống, ẩn cho tất cả mọi người. "Ẩn tạm" chỉ ẩn
+  // trên trình duyệt đang xem (lưu ở localStorage), không ảnh hưởng người khác, lần sau vẫn hiện lại.
+  var NOTICE_DISMISS_KEY = "kho_dismissed_notices";
+  var noticesCache = [];
+  function getDismissedNoticeIds(){
+    try{ return JSON.parse(localStorage.getItem(NOTICE_DISMISS_KEY) || "[]"); }catch(e){ return []; }
+  }
+  function dismissNotice(id){
+    var ids = getDismissedNoticeIds();
+    if(ids.indexOf(id) === -1){
+      ids.push(id);
+      try{ localStorage.setItem(NOTICE_DISMISS_KEY, JSON.stringify(ids)); }catch(e){}
+    }
+    renderNoticesFiltered();
+  }
+  function loadNotices(){
+    if(!state.connected) return;
+    sbGet(T_NOTICES+"?done=eq.false&order=created_at.desc&select=*").then(function(rows){
+      noticesCache = rows;
+      renderNoticesFiltered();
+    }).catch(function(err){ console.error("load notices error", err); });
+  }
+  function renderNoticesFiltered(){
+    var dismissed = getDismissedNoticeIds();
+    var visible = noticesCache.filter(function(n){ return dismissed.indexOf(n.id) === -1; });
+    renderNotices(visible, noticesCache.length);
+  }
+  function renderNotices(visible, totalPending){
+    var board = $("notice-board");
+    var list = $("notice-list");
+    var countEl = $("notice-count");
+    var emptyEl = $("notice-empty");
+    board.hidden = false;
+    if(totalPending > 0){ countEl.hidden = false; countEl.textContent = totalPending; } else { countEl.hidden = true; }
+    if(!visible.length){
+      emptyEl.hidden = false;
+      emptyEl.textContent = totalPending > 0 ? "Bạn đã ẩn tạm hết việc đang chờ trên máy này." : "Không có việc nào đang chờ.";
+      list.innerHTML = "";
+      return;
+    }
+    emptyEl.hidden = true;
+    list.innerHTML = visible.map(function(n){
+      var actions = "";
+      if(n.link_url) actions += '<a class="btn ghost small" href="'+escapeHtml(n.link_url)+'" target="_blank" rel="noopener" style="width:auto;">Mở link đơn hàng</a>';
+      if(n.pdf_path) actions += '<a class="btn ghost small" href="'+noticePdfUrl(n.pdf_path)+'" target="_blank" rel="noopener" style="width:auto;">Xem PDF</a>';
+      actions += '<button type="button" class="btn small notice-done-btn" data-id="'+n.id+'" style="width:auto;">Đã xong</button>';
+      actions += '<button type="button" class="btn ghost small notice-dismiss-btn" data-id="'+n.id+'" style="width:auto;">Ẩn tạm</button>';
+      return '<div class="notice-item" data-id="'+n.id+'">' +
+        '<p class="notice-content">'+escapeHtml(n.content)+'</p>' +
+        '<div class="notice-actions">'+actions+'</div>' +
+      '</div>';
+    }).join("");
+    list.querySelectorAll(".notice-done-btn").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var id = btn.getAttribute("data-id");
+        btn.disabled = true; btn.textContent = "Đang lưu…";
+        patchById(T_NOTICES, id, { done:true, done_at: new Date().toISOString() }).then(function(){
+          loadNotices();
+        }).catch(function(err){
+          btn.disabled = false; btn.textContent = "Đã xong";
+          console.error(err);
+          alert("Lưu thất bại, thử lại.");
+        });
+      });
+    });
+    list.querySelectorAll(".notice-dismiss-btn").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        dismissNotice(Number(btn.getAttribute("data-id")));
+      });
+    });
+  }
+  $("notice-add-toggle").addEventListener("click", function(){
+    var form = $("notice-add-form");
+    form.hidden = !form.hidden;
+  });
+  function addNotice(){
+    var contentInput = $("notice-content");
+    var content = contentInput.value.trim();
+    var linkInput = $("notice-link");
+    var link = linkInput.value.trim();
+    var fileInput = $("notice-pdf");
+    var file = fileInput.files && fileInput.files[0];
+    if(!content){ showToast("notice-toast","err","Chưa nhập nội dung việc cần làm."); contentInput.focus(); return; }
+    var btn = $("notice-save");
+    btn.disabled = true; btn.textContent = "Đang lưu…";
+    var uploadPromise = file ? uploadNoticePdf(file) : Promise.resolve(null);
+    uploadPromise.then(function(pdfPath){
+      return insertRow(T_NOTICES, { content: content, link_url: link || null, pdf_path: pdfPath, staff: state.staffName || null });
+    }).then(function(){
+      btn.disabled = false; btn.textContent = "Lưu việc cần làm";
+      contentInput.value = ""; linkInput.value = ""; fileInput.value = "";
+      showToast("notice-toast","ok","Đã lưu việc cần làm.");
+      $("notice-add-form").hidden = true;
+      loadNotices();
+    }).catch(function(err){
+      btn.disabled = false; btn.textContent = "Lưu việc cần làm";
+      console.error(err);
+      showToast("notice-toast","err","Lưu thất bại, thử lại (kiểm tra đã tạo bảng/Storage 'notices-pdf' trên Supabase chưa).");
+    });
+  }
+  $("notice-save").addEventListener("click", addNotice);
+
+/* ---------------- tab nav ---------------- */
   var tabs = ["returns","outbound","dashboard","lists","errorlog"];
   document.getElementById("tabnav").addEventListener("click", function(e){
     var btn = e.target.closest("button[data-tab]");
@@ -963,6 +1119,8 @@
       connDot.title = "Đã kết nối dữ liệu";
       hideConnError();
       loadReturnsToday();
+      loadNotices();
+      if(!state.noticePollTimer) state.noticePollTimer = setInterval(loadNotices, 20000);
     }).catch(function(err){
       state.connected = false;
       connDot.classList.add("off"); connDot.classList.remove("on");
