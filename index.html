@@ -1119,6 +1119,7 @@
       connDot.title = "Đã kết nối dữ liệu";
       hideConnError();
       loadReturnsToday();
+      $("notice-board").hidden = false; // hiện khu vực "Việc cần làm" ngay khi kết nối được, kể cả lúc chưa tải xong/tải lỗi
       loadNotices();
       if(!state.noticePollTimer) state.noticePollTimer = setInterval(loadNotices, 20000);
     }).catch(function(err){
