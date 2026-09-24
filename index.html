@@ -148,6 +148,7 @@
   .kpi-dots .dot-good{ background:var(--good-ink); }
   .kpi-dots .dot-crit{ background:var(--crit-ink); }
   .kpi-dots .dot-warn{ background:var(--warn-ink); }
+
   .notice-board{ background:var(--warn-soft); border:1px solid var(--warn); border-radius:var(--radius); padding:14px 16px; margin-bottom:14px; }
   .notice-board-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
   .notice-board-head h2{ font-size:14px; margin:0; display:flex; align-items:center; gap:6px; }
@@ -158,7 +159,13 @@
   .notice-item .notice-content{ margin:0 0 8px; white-space:pre-wrap; font-size:13px; }
   .notice-actions{ display:flex; gap:8px; flex-wrap:wrap; }
 
-
+  .notice-popup-overlay{ position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:200; display:flex; align-items:center; justify-content:center; padding:20px; }
+  .notice-popup-overlay[hidden]{ display:none; }
+  .notice-popup-box{ background:var(--surface); border-radius:16px; max-width:480px; width:100%; max-height:85vh; overflow-y:auto; padding:20px; position:relative; box-shadow:0 20px 60px rgba(0,0,0,.35); }
+  .notice-popup-box h2{ font-size:16px; margin:0 0 4px; display:flex; align-items:center; gap:6px; }
+  .notice-popup-box .notice-popup-sub{ font-size:12.5px; color:var(--ink-2); margin:0 0 4px; }
+  .notice-popup-close{ position:absolute; top:12px; right:12px; width:30px; height:30px; border-radius:50%; border:1px solid var(--border-soft);
+    background:var(--surface); color:var(--ink-2); font-size:16px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; }
 
   .seg{ display:flex; gap:6px; flex-wrap:wrap; }
   .seg button{ border:1px solid var(--border); background:var(--surface); color:var(--ink-2); font-weight:600; font-size:12.5px;
@@ -349,6 +356,14 @@
     <div id="notice-list"></div>
   </div>
 
+  <div class="notice-popup-overlay" id="notice-popup-overlay" hidden>
+    <div class="notice-popup-box">
+      <button type="button" class="notice-popup-close" id="notice-popup-close" aria-label="Đóng">✕</button>
+      <h2>📌 Việc cần làm</h2>
+      <p class="notice-popup-sub">Bấm "Đã xong" khi xử lý xong, hoặc bấm ✕ để thu gọn xuống đầu trang.</p>
+      <div id="notice-popup-list"></div>
+    </div>
+  </div>
 
   <nav class="tabnav" id="tabnav">
     <button data-tab="returns" class="active">1. Tích đơn hoàn</button>
@@ -560,7 +575,7 @@
 
   <!-- ================= 5. ERROR LOG (Thống kê lỗi) ================= -->
   <section class="panel" id="panel-errorlog" hidden>
-<div class="card">
+    <div class="card">
       <div class="card-head">
         <h2>Thống kê lỗi</h2>
         <span class="sub" style="margin:0;" id="errlog-count"></span>
@@ -921,61 +936,38 @@
   });
   staffInput.addEventListener("keydown", function(e){ if(e.key === "Enter"){ $("staff-save").click(); } });
 
-    /* ---------------- notice board (Việc cần làm) ---------------- */
+  /* ---------------- notice board (Việc cần làm) ---------------- */
   // Banner cố định, hiện ở mọi tab — quản lý ghi việc cần làm (kèm link đơn hàng và/hoặc file PDF tuỳ chọn),
-  // nhân viên mở sổ kho lên là thấy ngay. "Đã xong" lưu vào hệ thống, ẩn cho tất cả mọi người. "Ẩn tạm" chỉ ẩn
-  // trên trình duyệt đang xem (lưu ở localStorage), không ảnh hưởng người khác, lần sau vẫn hiện lại.
-  var NOTICE_DISMISS_KEY = "kho_dismissed_notices";
+  // nhân viên mở sổ kho lên là thấy ngay. Lần đầu mở trang trong phiên trình duyệt (mỗi lần mở lại app/tab mới),
+  // nếu còn việc chưa xong thì bật popup nổi giữa màn hình liệt kê hết các việc. Bấm ✕ trên popup chỉ thu popup
+  // về lại thành banner ở đầu trang — việc chỉ thực sự biến mất khi bấm "Đã xong" (done=true, áp dụng cho tất cả).
+  var NOTICE_POPUP_SHOWN_KEY = "kho_notice_popup_shown";
   var noticesCache = [];
-  function getDismissedNoticeIds(){
-    try{ return JSON.parse(localStorage.getItem(NOTICE_DISMISS_KEY) || "[]"); }catch(e){ return []; }
-  }
-  function dismissNotice(id){
-    var ids = getDismissedNoticeIds();
-    if(ids.indexOf(id) === -1){
-      ids.push(id);
-      try{ localStorage.setItem(NOTICE_DISMISS_KEY, JSON.stringify(ids)); }catch(e){}
-    }
-    renderNoticesFiltered();
-  }
   function loadNotices(){
     if(!state.connected) return;
     sbGet(T_NOTICES+"?done=eq.false&order=created_at.desc&select=*").then(function(rows){
       noticesCache = rows;
-      renderNoticesFiltered();
+      renderNotices(rows);
+      var overlay = $("notice-popup-overlay");
+      if(!overlay.hidden){
+        if(rows.length) showNoticePopup(rows); else closeNoticePopup();
+      } else {
+        maybeShowNoticePopup(rows);
+      }
     }).catch(function(err){ console.error("load notices error", err); });
   }
-  function renderNoticesFiltered(){
-    var dismissed = getDismissedNoticeIds();
-    var visible = noticesCache.filter(function(n){ return dismissed.indexOf(n.id) === -1; });
-    renderNotices(visible, noticesCache.length);
+  function noticeItemHtml(n){
+    var actions = "";
+    if(n.link_url) actions += '<a class="btn ghost small" href="'+escapeHtml(n.link_url)+'" target="_blank" rel="noopener" style="width:auto;">Mở link đơn hàng</a>';
+    if(n.pdf_path) actions += '<a class="btn ghost small" href="'+noticePdfUrl(n.pdf_path)+'" target="_blank" rel="noopener" style="width:auto;">Xem PDF</a>';
+    actions += '<button type="button" class="btn small notice-done-btn" data-id="'+n.id+'" style="width:auto;">Đã xong</button>';
+    return '<div class="notice-item" data-id="'+n.id+'">' +
+      '<p class="notice-content">'+escapeHtml(n.content)+'</p>' +
+      '<div class="notice-actions">'+actions+'</div>' +
+    '</div>';
   }
-  function renderNotices(visible, totalPending){
-    var board = $("notice-board");
-    var list = $("notice-list");
-    var countEl = $("notice-count");
-    var emptyEl = $("notice-empty");
-    board.hidden = false;
-    if(totalPending > 0){ countEl.hidden = false; countEl.textContent = totalPending; } else { countEl.hidden = true; }
-    if(!visible.length){
-      emptyEl.hidden = false;
-      emptyEl.textContent = totalPending > 0 ? "Bạn đã ẩn tạm hết việc đang chờ trên máy này." : "Không có việc nào đang chờ.";
-      list.innerHTML = "";
-      return;
-    }
-    emptyEl.hidden = true;
-    list.innerHTML = visible.map(function(n){
-      var actions = "";
-      if(n.link_url) actions += '<a class="btn ghost small" href="'+escapeHtml(n.link_url)+'" target="_blank" rel="noopener" style="width:auto;">Mở link đơn hàng</a>';
-      if(n.pdf_path) actions += '<a class="btn ghost small" href="'+noticePdfUrl(n.pdf_path)+'" target="_blank" rel="noopener" style="width:auto;">Xem PDF</a>';
-      actions += '<button type="button" class="btn small notice-done-btn" data-id="'+n.id+'" style="width:auto;">Đã xong</button>';
-      actions += '<button type="button" class="btn ghost small notice-dismiss-btn" data-id="'+n.id+'" style="width:auto;">Ẩn tạm</button>';
-      return '<div class="notice-item" data-id="'+n.id+'">' +
-        '<p class="notice-content">'+escapeHtml(n.content)+'</p>' +
-        '<div class="notice-actions">'+actions+'</div>' +
-      '</div>';
-    }).join("");
-    list.querySelectorAll(".notice-done-btn").forEach(function(btn){
+  function bindNoticeDoneButtons(container){
+    container.querySelectorAll(".notice-done-btn").forEach(function(btn){
       btn.addEventListener("click", function(){
         var id = btn.getAttribute("data-id");
         btn.disabled = true; btn.textContent = "Đang lưu…";
@@ -988,12 +980,44 @@
         });
       });
     });
-    list.querySelectorAll(".notice-dismiss-btn").forEach(function(btn){
-      btn.addEventListener("click", function(){
-        dismissNotice(Number(btn.getAttribute("data-id")));
-      });
-    });
   }
+  function renderNotices(rows){
+    var board = $("notice-board");
+    var list = $("notice-list");
+    var countEl = $("notice-count");
+    var emptyEl = $("notice-empty");
+    board.hidden = false;
+    if(rows.length > 0){ countEl.hidden = false; countEl.textContent = rows.length; } else { countEl.hidden = true; }
+    if(!rows.length){
+      emptyEl.hidden = false;
+      emptyEl.textContent = "Không có việc nào đang chờ.";
+      list.innerHTML = "";
+      return;
+    }
+    emptyEl.hidden = true;
+    list.innerHTML = rows.map(noticeItemHtml).join("");
+    bindNoticeDoneButtons(list);
+  }
+  function maybeShowNoticePopup(rows){
+    var alreadyShown = false;
+    try{ alreadyShown = sessionStorage.getItem(NOTICE_POPUP_SHOWN_KEY) === "1"; }catch(e){}
+    if(alreadyShown || !rows.length) return;
+    try{ sessionStorage.setItem(NOTICE_POPUP_SHOWN_KEY, "1"); }catch(e){}
+    showNoticePopup(rows);
+  }
+  function showNoticePopup(rows){
+    var popupList = $("notice-popup-list");
+    popupList.innerHTML = rows.map(noticeItemHtml).join("");
+    bindNoticeDoneButtons(popupList);
+    $("notice-popup-overlay").hidden = false;
+  }
+  function closeNoticePopup(){
+    $("notice-popup-overlay").hidden = true;
+  }
+  $("notice-popup-close").addEventListener("click", closeNoticePopup);
+  $("notice-popup-overlay").addEventListener("click", function(e){
+    if(e.target === $("notice-popup-overlay")) closeNoticePopup();
+  });
   $("notice-add-toggle").addEventListener("click", function(){
     var form = $("notice-add-form");
     form.hidden = !form.hidden;
@@ -1025,7 +1049,7 @@
   }
   $("notice-save").addEventListener("click", addNotice);
 
-/* ---------------- tab nav ---------------- */
+  /* ---------------- tab nav ---------------- */
   var tabs = ["returns","outbound","dashboard","lists","errorlog"];
   document.getElementById("tabnav").addEventListener("click", function(e){
     var btn = e.target.closest("button[data-tab]");
@@ -1627,7 +1651,7 @@
       updateListsBadge();
     }).catch(function(err){ console.error("dashboard load error", err); });
   }
-function runManualReconcile(){
+  function runManualReconcile(){
     var btn = $("dash-reconcile-btn");
     var statusEl = $("dash-recon-status");
     if(!state.connected){ statusEl.textContent = "Chưa kết nối được dữ liệu, thử lại sau."; return; }
@@ -1894,13 +1918,13 @@ function runManualReconcile(){
       console.error(err);
     });
   }
-  // Lọc theo ô tìm mã ngay trên dữ liệu đã tải (không gọi lại API) rìiẽ bảng — dùng cho lần tải đầu và mỗi khi gõ ô tìm mã.
+  // Lọc theo ô tìm mã ngay trên dữ liệu đã tải (không gọi lại API) rồi vẽ bảng — dùng cho lần tải đầu và mỗi khi gõ ô tìm mã.
   function renderListsReturnsFiltered(){
     var q = ($("retlist-search").value || "").trim().toLowerCase();
     var rows = q ? listsReturnsCache.filter(function(e){ return (e.code||"").toLowerCase().indexOf(q) >= 0; }) : listsReturnsCache;
     renderListsReturns(rows);
   }
-    function renderListsReturns(rows){
+  function renderListsReturns(rows){
     var body = $("review-body");
     if(!rows.length){ body.innerHTML = '<tr class="empty-row"><td colspan="5">Không có đơn nào phù hợp bộ lọc.</td></tr>'; return; }
     var groups = groupByDate(rows);
@@ -2083,8 +2107,7 @@ function runManualReconcile(){
     }
     syncOutlistTopScroll();
   }
-
-    // Thanh kéo ngang phụ đặt ngay trên lưới "Đơn đi" — đồng bộ 2 chiều với lưới, để không phải
+  // Thanh kéo ngang phụ đặt ngay trên lưới "Đơn đi" — đồng bộ 2 chiều với lưới, để không phải
   // cuộn xuống cuối bảng (nhiều khi rất dài) mới kéo ngang được.
   function syncOutlistTopScroll(){
     var grid = $("outlist-daygrid");
@@ -2110,7 +2133,7 @@ function runManualReconcile(){
     });
   })();
 
-/* ---------------- init ---------------- */
+  /* ---------------- init ---------------- */
   setTab("returns");
   initConn();
 })();
