@@ -167,6 +167,13 @@
   .notice-popup-close{ position:absolute; top:12px; right:12px; width:30px; height:30px; border-radius:50%; border:1px solid var(--border-soft);
     background:var(--surface); color:var(--ink-2); font-size:16px; line-height:1; cursor:pointer; display:flex; align-items:center; justify-content:center; }
 
+  .mini-bars{ margin-top:5px; display:flex; flex-direction:column; gap:3px; }
+  .mini-bars .bar-row{ display:flex; align-items:center; gap:6px; font-size:11px; color:var(--ink-2); line-height:1.3; }
+  .mini-bars .bar-row .bar-label{ width:52px; flex-shrink:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .mini-bars .bar-row .bar-track{ flex:1; height:6px; background:var(--border-soft); border-radius:3px; overflow:hidden; }
+  .mini-bars .bar-row .bar-fill{ height:100%; border-radius:3px; }
+  .mini-bars .bar-row .bar-count{ width:16px; text-align:right; font-weight:700; flex-shrink:0; }
+
   .seg{ display:flex; gap:6px; flex-wrap:wrap; }
   .seg button{ border:1px solid var(--border); background:var(--surface); color:var(--ink-2); font-weight:600; font-size:12.5px;
     padding:7px 13px; border-radius:9px; cursor:pointer; display:flex; align-items:center; gap:6px; }
@@ -609,7 +616,9 @@
         <select id="errlog-type">
           <option value="kho_van">Lỗi shop - Kho vận</option>
           <option value="san_pham">Lỗi shop - Sản phẩm</option>
+          <option value="khach_quan">Lỗi khách quan</option>
         </select>
+        <select id="errlog-detail-reason"></select>
         <input type="text" id="errlog-reason" placeholder="Lý do cụ thể…" autocomplete="off" style="flex:1; min-width:180px;" />
         <button class="btn ghost small" id="errlog-add">Ghi lại</button>
       </div>
@@ -652,12 +661,31 @@
     hu_hong: "Lỗi khách - Hàng hỏng",
     sai_hang: "Lỗi khách - Hàng không phải của shop"
   };
-  // 2 loại lỗi ghi trong "Thống kê lỗi" (mục Tổng quan) — đều là lỗi phía shop, quản lý ghi tay
-  // ngay khi phát hiện qua chat khách/kiểm tra yêu cầu trả hàng, không cần chờ hàng về kho.
+  // 3 loại lỗi ghi trong "Thống kê lỗi" (mục Tổng quan) — quản lý ghi tay ngay khi phát hiện qua
+  // chat khách/kiểm tra yêu cầu trả hàng, không cần chờ hàng về kho.
   var SHOP_ERROR_LABELS = {
     kho_van: "Lỗi shop - Kho vận",
-    san_pham: "Lỗi shop - Sản phẩm"
+    san_pham: "Lỗi shop - Sản phẩm",
+    khach_quan: "Lỗi khách quan"
   };
+  // Lý do chi tiết — tuỳ chọn, danh sách phụ thuộc vào loại lỗi đã chọn ở trên. Để trống được, sau
+  // có lý do khác thì cập nhật thêm vào đây.
+  var DETAIL_REASON_OPTIONS = {
+    kho_van: [ { v:"giao_thieu", l:"Giao thiếu" }, { v:"giao_nham", l:"Giao nhầm" } ],
+    san_pham: [ { v:"san_pham_loi", l:"Sản phẩm lỗi" } ],
+    khach_quan: [ { v:"loi_bang_size", l:"Lỗi bảng size" } ]
+  };
+  var DETAIL_REASON_LABELS = {};
+  Object.keys(DETAIL_REASON_OPTIONS).forEach(function(k){
+    DETAIL_REASON_OPTIONS[k].forEach(function(o){ DETAIL_REASON_LABELS[o.v] = o.l; });
+  });
+  function populateDetailReasonOptions(){
+    var sel = $("errlog-detail-reason");
+    var errorType = $("errlog-type").value;
+    var opts = DETAIL_REASON_OPTIONS[errorType] || [];
+    sel.innerHTML = '<option value="">Lý do chi tiết (không bắt buộc)…</option>' +
+      opts.map(function(o){ return '<option value="'+o.v+'">'+escapeHtml(o.l)+'</option>'; }).join("");
+  }
   var STATUS_LABELS = { none:"Không cần", pending:"Chờ xử lý", submitted:"Đã gửi khiếu nại", resolved:"Đã xử lý xong", lost:"Xác nhận thất lạc" };
   var COMPLAINT_RESULT_LABELS = { thanh_cong:"Thành công", that_bai:"Thất bại" };
   var RTYPE_LABELS = { boom:"Huỷ / Bom hàng", doi_tra:"Hoàn trả" };
@@ -1693,12 +1721,19 @@
       });
       var totalComplaints = complaintMonthRows.length;
 
-      var errKhoVan = 0, errSanPham = 0;
+      var errKhoVan = 0, errSanPham = 0, errKhachQuan = 0;
       errLogMonthRows.forEach(function(e){
         if(e.error_type === "kho_van") errKhoVan++;
         else if(e.error_type === "san_pham") errSanPham++;
+        else if(e.error_type === "khach_quan") errKhachQuan++;
       });
-      var totalErrShop = errKhoVan + errSanPham;
+      var totalErrShop = errKhoVan + errSanPham + errKhachQuan;
+      var errMax = Math.max(errKhoVan, errSanPham, errKhachQuan, 1);
+      function errBarRow(label, val, colorVar){
+        return '<div class="bar-row"><span class="bar-label">'+label+'</span>' +
+          '<span class="bar-track"><span class="bar-fill" style="width:'+Math.round(val/errMax*100)+'%; background:'+colorVar+';"></span></span>' +
+          '<span class="bar-count">'+val+'</span></div>';
+      }
 
       var kpis = [
         { lbl:"Số đơn hoàn (tháng này)", val: returnsRows.length, foot: t+" TikTok · "+s+" Shopee" },
@@ -1715,11 +1750,12 @@
             '<span><span class="dot dot-crit"></span>Thất bại <b>'+crFail+'</b></span>' +
             '<span><span class="dot dot-warn"></span>Đang chờ <b>'+crPending+'</b></span>' +
           '</div></div>';
-      tilesHtml += '<div class="kpi kpi-compound kpi-dots"><span class="lbl">Lỗi shop trong tháng</span>' +
+      tilesHtml += '<div class="kpi kpi-compound"><span class="lbl">Lỗi shop trong tháng</span>' +
           '<span class="val tabular">'+totalErrShop+'</span>' +
-          '<div class="dots">' +
-            '<span><span class="dot dot-gray"></span>Kho vận <b>'+errKhoVan+'</b></span>' +
-            '<span><span class="dot dot-warn"></span>Sản phẩm <b>'+errSanPham+'</b></span>' +
+          '<div class="mini-bars">' +
+            errBarRow("Kho vận", errKhoVan, "var(--ink-3)") +
+            errBarRow("Sản phẩm", errSanPham, "var(--warn-ink)") +
+            errBarRow("Khách quan", errKhachQuan, "var(--crit-ink)") +
           '</div></div>';
       kpiGrid.innerHTML = tilesHtml;
 
@@ -1771,7 +1807,7 @@
       return '<tr>' +
         '<td class="mono">'+escapeHtml(e.code)+'</td>' +
         '<td><span class="badge pending" style="background:var(--crit-soft);color:var(--crit-ink);">'+escapeHtml(SHOP_ERROR_LABELS[e.error_type]||e.error_type)+'</span></td>' +
-        '<td>'+escapeHtml(e.reason||"")+'</td>' +
+        '<td>'+(e.detail_reason ? '<b>'+escapeHtml(DETAIL_REASON_LABELS[e.detail_reason]||e.detail_reason)+'</b> — ' : '')+escapeHtml(e.reason||"")+'</td>' +
         '<td class="tabular">'+fmtDate(e.created_at ? e.created_at.slice(0,10) : "")+'</td>' +
         '<td><button type="button" class="review-save errlog-del" data-id="'+e.id+'">Xoá</button></td>' +
       '</tr>';
@@ -1795,15 +1831,16 @@
     var codeInput = $("errlog-code");
     var code = codeInput.value.trim();
     var errorType = $("errlog-type").value;
+    var detailReason = $("errlog-detail-reason").value || null;
     var reasonInput = $("errlog-reason");
     var reason = reasonInput.value.trim();
     if(!code){ showToast("errlog-toast","err","Chưa nhập mã vận đơn."); codeInput.focus(); return; }
     if(!reason){ showToast("errlog-toast","err","Chưa nhập lý do cụ thể."); reasonInput.focus(); return; }
     var btn = $("errlog-add");
     btn.disabled = true; btn.textContent = "Đang lưu…";
-    insertRow(T_ERRLOG, { code: code, error_type: errorType, reason: reason, staff: state.staffName || null }).then(function(){
+    insertRow(T_ERRLOG, { code: code, error_type: errorType, detail_reason: detailReason, reason: reason, staff: state.staffName || null }).then(function(){
       btn.disabled = false; btn.textContent = "Ghi lại";
-      codeInput.value = ""; reasonInput.value = "";
+      codeInput.value = ""; reasonInput.value = ""; populateDetailReasonOptions();
       showToast("errlog-toast","ok","Đã ghi nhận "+SHOP_ERROR_LABELS[errorType]+" cho mã "+code+".");
       loadErrorLog();
     }).catch(function(err){
@@ -1814,6 +1851,8 @@
   }
   $("errlog-add").addEventListener("click", addErrorLogEntry);
   $("errlog-reason").addEventListener("keydown", function(e){ if(e.key === "Enter"){ e.preventDefault(); addErrorLogEntry(); } });
+  $("errlog-type").addEventListener("change", populateDetailReasonOptions);
+  populateDetailReasonOptions();
 
   // Cảnh báo ở mục 1 (Tích đơn hoàn) khi mã vận đơn đang gõ/quét trùng với 1 ca đã ghi ở Thống kê lỗi —
   // chỉ để nhân viên biết cách xử lý, KHÔNG tự động gán vào "có vấn đề"; đơn vẫn tích bình thường.
@@ -1827,7 +1866,8 @@
         if($("returns-code").value.trim() !== code) return; // mã đã đổi trong lúc chờ — bỏ kết quả cũ
         if(!rows.length){ box.style.display = "none"; box.innerHTML = ""; return; }
         box.innerHTML = rows.map(function(e){
-          return '<div><b>⚠️ '+escapeHtml(SHOP_ERROR_LABELS[e.error_type]||e.error_type)+'</b> — '+escapeHtml(e.reason||"")+'</div>';
+          var detail = e.detail_reason ? " ("+escapeHtml(DETAIL_REASON_LABELS[e.detail_reason]||e.detail_reason)+")" : "";
+          return '<div><b>⚠️ '+escapeHtml(SHOP_ERROR_LABELS[e.error_type]||e.error_type)+detail+'</b> — '+escapeHtml(e.reason||"")+'</div>';
         }).join("");
         box.style.display = "flex";
       }).catch(function(){});
