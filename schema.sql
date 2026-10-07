@@ -4,23 +4,23 @@
 
 create table if not exists warehouse_return_checks (
   id bigint generated always as identity primary key,
-  code text not null unique,                  -- mã vận đơn quét được lúc nhận hàng (GHN/J&T/SPX, hoặc mã gửi đi cũ nếu là "đổi ý giữa đường")
-  oid text,                                    -- mã đơn hàng (tuỳ chọn) — bắt buộc dùng để đối chiếu khi đơn không có mã vận đơn trả riêng
+  code text not null unique,                          -- mã vận đơn quét được lúc nhận hàng (GHN/J&T/SPX, hoặc mã gửi đi cũ nếu là "đổi ý giữa đường")
+  oid text,                                            -- mã đơn hàng (tuỳ chọn) — bắt buộc dùng để đối chiếu khi đơn không có mã vận đơn trả riêng
   platform text not null check (platform in ('tiktok','shopee')),
-  carrier text,                                -- 'J&T Express' | 'GHN' | 'Shopee Express'
+  carrier text,                                        -- 'J&T Express' | 'GHN' | 'Shopee Express'
   staff text,
   scan_date date not null default current_date,
   scanned_at timestamptz not null default now(),
   return_type text check (return_type in ('boom','doi_tra')),  -- 'boom' = huỷ/khách không nhận hàng (không cần bóc kiểm) | 'doi_tra' = hoàn trả, khách đã nhận rồi gửi lại (phải bóc kiểm SKU/SL khớp lệnh trả trên sàn)
   has_problem boolean not null default false,  -- chỉ áp dụng cho return_type = 'doi_tra' (Hoàn trả); đơn Huỷ/Bom hàng chỉ cần xác nhận, không có bước này
-  problem_type text,                           -- hu_hong (Hàng hỏng) | sai_hang (Hàng không phải của shop)
-  note text,                                   -- không còn nhập từ UI (giữ cột phòng khi cần dùng lại)
+  problem_type text,                                   -- hu_hong (Hàng hỏng) | sai_hang (Hàng không phải của shop)
+  note text,                                           -- không còn nhập từ UI (giữ cột phòng khi cần dùng lại)
   complaint_status text not null default 'none' check (complaint_status in ('none','pending','submitted','resolved')),
   -- các trường bổ sung sau (bước rà soát), chỉ áp dụng cho return_type = 'doi_tra':
   sku text,
   quantity integer,
   return_category text,
-  order_status text,                           -- vd "Nguyên vẹn"
+  order_status text,                                   -- vd "Nguyên vẹn"
   return_reason text,
   matched_in_platform_file boolean not null default false,  -- true khi đối chiếu khớp được với hoanVeKhoDetail (theo mã vận đơn hoặc oid)
   created_at timestamptz not null default now(),
@@ -30,7 +30,11 @@ create table if not exists warehouse_return_checks (
 -- An toàn khi chạy lại trên bảng đã có từ trước (thêm cột mới không ảnh hưởng dữ liệu cũ):
 alter table warehouse_return_checks add column if not exists return_type text check (return_type in ('boom','doi_tra'));
 alter table warehouse_return_checks add column if not exists oid text;
-alter table warehouse_return_checks drop column if exists cost;  -- bỏ trường chi phí, không dùng nữa
+alter table warehouse_return_checks drop column if exists cost; -- bỏ trường chi phí, không dùng nữa
+
+-- Kết quả khiếu nại (Thành công/Thất bại) — chỉ có ý nghĩa khi complaint_status = 'submitted' (đã gửi khiếu nại).
+-- Để trống (null) = "Đang chờ kết quả" trên mục Tổng quan.
+alter table warehouse_return_checks add column if not exists complaint_result text check (complaint_result in ('thanh_cong','that_bai'));
 
 create table if not exists warehouse_outbound_checks (
   id bigint generated always as identity primary key,
@@ -52,13 +56,94 @@ create table if not exists warehouse_return_match_status (
   platform text not null check (platform in ('tiktok','shopee')),
   match_key text not null,
   match_type text not null check (match_type in ('tracking','oid')),
-  loai text,                                   -- loại như sàn trả về, vd "Đơn trả (khách gửi trả hàng)"
+  loai text,                                           -- loại như sàn trả về, vd "Đơn trả (khách gửi trả hàng)"
   status text not null default 'pending' check (status in ('pending','resolved','lost')),
   note text,
   updated_at timestamptz not null default now(),
   created_at timestamptz not null default now(),
   unique (platform, match_key)
 );
+
+-- "Thống kê lỗi" (mục Tổng quan) — sổ ghi tay của quản lý, ĐỘC LẬP với warehouse_return_checks.
+-- Ghi ngay khi phát hiện lỗi thuộc về shop (qua chat khách hàng / kiểm tra yêu cầu trả hàng),
+-- có thể ghi TRƯỚC khi hàng thực sự về kho — không cần đơn đã tồn tại trong warehouse_return_checks.
+-- Không ràng buộc unique trên `code`: 1 mã vận đơn có thể có nhiều ca ghi (vd ghi nhầm, ghi bổ sung).
+create table if not exists warehouse_error_log (
+  id bigint generated always as identity primary key,
+  code text not null,                                  -- mã vận đơn, dùng chung với lúc kho tích đơn ở mục 1
+  error_type text not null check (error_type in ('kho_van','san_pham','khach_quan')), -- kho_van = Lỗi shop - Kho vận | san_pham = Lỗi shop - Sản phẩm | khach_quan = Lỗi khách quan
+  detail_reason text,                                  -- lý do chi tiết chọn từ danh sách theo loại lỗi (tuỳ chọn) — vd 'giao_thieu','giao_nham','san_pham_loi','loi_bang_size'
+  reason text not null,                                -- lý do cụ thể, quản lý tự gõ
+  staff text,                                          -- tên người ghi (lấy từ ô "Nhân viên" ở góc trên web)
+  created_at timestamptz not null default now()
+);
+alter table warehouse_error_log drop constraint if exists warehouse_error_log_error_type_check;
+alter table warehouse_error_log add constraint warehouse_error_log_error_type_check check (error_type in ('kho_van','san_pham','khach_quan'));
+alter table warehouse_error_log add column if not exists detail_reason text;
+create index if not exists idx_werr_code on warehouse_error_log(code);
+
+alter table warehouse_error_log enable row level security;
+drop policy if exists "anon full access" on warehouse_error_log;
+create policy "anon full access" on warehouse_error_log for all to anon using (true) with check (true);
+
+-- "Việc cần làm" — banner nhắc việc hiện ở mọi tab của Sổ Kho. Quản lý ghi việc (nội dung, có thể kèm link
+-- đơn hàng Sapo/ShopeeExpress và/hoặc file PDF đính kèm), nhân viên mở sổ kho lên là thấy ngay, tự tích
+-- "Đã xong" khi xử lý xong (done=true, ẩn cho tất cả). "Ẩn tạm" chỉ lưu ở trình duyệt từng máy, không ghi vào
+-- bảng này.
+create table if not exists warehouse_notices (
+  id bigint generated always as identity primary key,
+  category text,                                       -- 'gui_don_bu' | 'thong_bao_chung'
+  order_code text,                                      -- mã đơn hàng/mã vận đơn — tuỳ chọn
+  content text not null,                                -- nội dung việc cần làm
+  link_url text,                                        -- link đơn hàng (Sapo/ShopeeExpress...) — tuỳ chọn
+  pdf_path text,                                         -- tên file PDF đã tải lên bucket Storage "notices-pdf" — tuỳ chọn
+  done boolean not null default false,
+  done_at timestamptz,
+  staff text,                                           -- tên người ghi (lấy từ ô "Nhân viên" ở góc trên web)
+  created_at timestamptz not null default now()
+);
+alter table warehouse_notices add column if not exists category text;
+alter table warehouse_notices add column if not exists order_code text;
+create index if not exists idx_notices_done on warehouse_notices(done);
+
+alter table warehouse_notices enable row level security;
+drop policy if exists "anon full access" on warehouse_notices;
+create policy "anon full access" on warehouse_notices for all to anon using (true) with check (true);
+
+-- Đơn đã in nhưng chưa đóng được trong ngày (thiếu hàng, lỗi hàng…) — mục "2. Tích đơn đi".
+-- Chỉ là sổ ghi để theo dõi cuối ca, không có trạng thái "đã xong" — ghi nhầm thì xoá tay.
+-- Không ràng buộc unique trên `code`: 1 mã có thể bị ghi lại nhiều lần (nhiều ngày vẫn thiếu hàng).
+create table if not exists warehouse_unpacked_log (
+  id bigint generated always as identity primary key,
+  code text not null,
+  platform text check (platform in ('tiktok','shopee')),
+  reason text not null check (reason in ('thieu_hang','loi_hang','khac')),
+  note text,
+  staff text,
+  scan_date date not null default current_date,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_wunpacked_scan_date on warehouse_unpacked_log(scan_date);
+create index if not exists idx_wunpacked_code on warehouse_unpacked_log(code);
+
+alter table warehouse_unpacked_log enable row level security;
+drop policy if exists "anon full access" on warehouse_unpacked_log;
+create policy "anon full access" on warehouse_unpacked_log for all to anon using (true) with check (true);
+
+-- Bucket Storage lưu file PDF đính kèm ở "Việc cần làm" — công khai (public) để web đọc file trực tiếp
+-- bằng đường dẫn, không cần đăng nhập. An toàn khi chạy lại nhiều lần.
+insert into storage.buckets (id, name, public)
+values ('notices-pdf', 'notices-pdf', true)
+on conflict (id) do update set public = true;
+
+drop policy if exists "notices-pdf anon read" on storage.objects;
+create policy "notices-pdf anon read" on storage.objects for select to anon using (bucket_id = 'notices-pdf');
+drop policy if exists "notices-pdf anon insert" on storage.objects;
+create policy "notices-pdf anon insert" on storage.objects for insert to anon with check (bucket_id = 'notices-pdf');
+drop policy if exists "notices-pdf anon update" on storage.objects;
+create policy "notices-pdf anon update" on storage.objects for update to anon using (bucket_id = 'notices-pdf');
+drop policy if exists "notices-pdf anon delete" on storage.objects;
+create policy "notices-pdf anon delete" on storage.objects for delete to anon using (bucket_id = 'notices-pdf');
 
 create index if not exists idx_wrc_scan_date on warehouse_return_checks(scan_date);
 create index if not exists idx_wrc_return_type on warehouse_return_checks(return_type);
@@ -75,11 +160,11 @@ $$ language plpgsql;
 
 drop trigger if exists trg_wrc_updated on warehouse_return_checks;
 create trigger trg_wrc_updated before update on warehouse_return_checks
-for each row execute function set_updated_at();
+  for each row execute function set_updated_at();
 
 drop trigger if exists trg_match_status_updated on warehouse_return_match_status;
 create trigger trg_match_status_updated before update on warehouse_return_match_status
-for each row execute function set_updated_at();
+  for each row execute function set_updated_at();
 
 -- Bật RLS + cho phép anon key (dùng thẳng từ trình duyệt, giống Sổ Vận Hành) đọc/ghi
 -- các bảng kho riêng này. KHÔNG đụng gì tới bảng monthly_reports đang có.
@@ -118,13 +203,13 @@ create policy "anon full access" on warehouse_return_match_status for all to ano
 -- ================================================================================
 create table if not exists warehouse_monthly_summary (
   id bigint generated always as identity primary key,
-  label text not null,                              -- vd "09/2026"
+  label text not null,                                 -- vd "09/2026"
   period_start date not null,
   period_end date not null,
   generated_at timestamptz not null default now(),
-  total_returns integer not null default 0,          -- tổng đơn hoàn kho đã nhận trong tháng (Hoàn trả + Huỷ/Bom hàng)
-  total_returns_problem integer not null default 0,  -- trong đó, số đơn có vấn đề (hàng hỏng / sai hàng)
-  total_outbound integer not null default 0,         -- tổng đơn tích đi (gửi hàng) trong tháng
+  total_returns integer not null default 0,             -- tổng đơn hoàn kho đã nhận trong tháng (Hoàn trả + Huỷ/Bom hàng)
+  total_returns_problem integer not null default 0,     -- trong đó, số đơn có vấn đề (hàng hỏng / sai hàng)
+  total_outbound integer not null default 0,             -- tổng đơn tích đi (gửi hàng) trong tháng
   unique (period_start, period_end)
 );
 
@@ -160,14 +245,14 @@ declare
   v_total_outbound integer;
 begin
   select count(*), count(*) filter (where has_problem)
-  into v_total_returns, v_total_returns_problem
-  from warehouse_return_checks
-  where scan_date >= v_start and scan_date <= v_end;
+    into v_total_returns, v_total_returns_problem
+    from warehouse_return_checks
+    where scan_date >= v_start and scan_date <= v_end;
 
   select count(*)
-  into v_total_outbound
-  from warehouse_outbound_checks
-  where scan_date >= v_start and scan_date <= v_end;
+    into v_total_outbound
+    from warehouse_outbound_checks
+    where scan_date >= v_start and scan_date <= v_end;
 
   insert into warehouse_monthly_summary
     (label, period_start, period_end, total_returns, total_returns_problem, total_outbound, generated_at)
@@ -190,17 +275,17 @@ $$;
 --    dữ liệu của tháng vừa kết thúc (chờ thêm 1 ngày so với bản trước để trừ hao đơn về muộn
 --    cuối tháng chưa kịp tích). Lưu ý: pg_cron chạy theo giờ UTC (UTC = giờ VN - 7 giờ),
 --    nên 02:00 sáng ngày mồng 2 giờ VN = 19:00 tối ngày mồng 1 giờ UTC:
---      select cron.schedule(
---        'warehouse-monthly-summary',
---        '0 19 1 * *',
---        $$select generate_warehouse_monthly_summary();$$
---      );
---    Nếu trước đó anh đã lỡ chạy lịch cũ rồi, chạy thêm lệnh này trước để xoá lịch cũ:
---      select cron.unschedule('warehouse-monthly-summary');
+-- select cron.schedule(
+--   'warehouse-monthly-summary',
+--   '0 19 1 * *',
+--   $$select generate_warehouse_monthly_summary();$$
+-- );
+-- Nếu trước đó anh đã lỡ chạy lịch cũ rồi, chạy thêm lệnh này trước để xoá lịch cũ:
+-- select cron.unschedule('warehouse-monthly-summary');
 -- 3) (Tuỳ chọn) Tổng hợp bù ngay cho tháng hiện tại/tháng trước để có dữ liệu thử luôn,
 --    không cần đợi tới đầu tháng sau:
---      select generate_warehouse_monthly_summary();               -- tháng trước
---      select generate_warehouse_monthly_summary('2026-09-01');   -- 1 tháng cụ thể
+-- select generate_warehouse_monthly_summary(); -- tháng trước
+-- select generate_warehouse_monthly_summary('2026-09-01'); -- 1 tháng cụ thể
 -- Từ đây Sổ Vận Hành chỉ cần đọc bảng warehouse_monthly_summary (cùng Supabase project,
 -- cùng anon key) bằng 1 câu query, không cần Sổ Kho gửi file hay thao tác gì thêm mỗi tháng.
 
@@ -211,6 +296,6 @@ $$;
 -- ổn với đúng cách này) thì KHÔNG cần làm gì thêm, anon key đã đọc được sẵn.
 -- Chỉ nếu monthly_reports ĐÃ bật RLS (kiểm tra ở Supabase Dashboard > Authentication > Policies)
 -- và web Sổ Kho báo lỗi không đọc được, thì mới cần thêm 1 policy SELECT cho anon:
---   create policy "anon read access" on monthly_reports for select to anon using (true);
+-- create policy "anon read access" on monthly_reports for select to anon using (true);
 -- Tuyệt đối không bật RLS mới trên bảng này nếu nó đang tắt — bật lên mà thiếu policy ghi
 -- sẽ làm gãy luôn app Sổ Vận Hành đang chạy (mất quyền insert/update của anon).

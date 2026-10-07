@@ -490,6 +490,45 @@
         </div>
       </div>
     </div>
+
+    <div class="scan-layout" style="margin-top:16px;">
+      <div class="card">
+        <h2>Đơn đã in nhưng chưa đóng được</h2>
+        <p class="sub">Quét mã đơn đã in nhưng chưa đóng được hôm nay (thiếu hàng, lỗi hàng…) để khỏi quên cuối ca</p>
+
+        <label class="field-label">Mã đơn</label>
+        <input class="order-code" id="unpacked-code" placeholder="Quét hoặc nhập mã đơn…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
+        <p class="platform-badge" id="unpacked-platform-badge"><span class="sw" style="width:8px;height:8px;border-radius:50%;background:var(--ink-3);display:inline-block;"></span> Chưa nhận diện được sàn — quét hoặc gõ mã vào ô trên</p>
+
+        <label class="field-label">Lý do</label>
+        <select id="unpacked-reason">
+          <option value="thieu_hang">Thiếu hàng</option>
+          <option value="loi_hang">Lỗi hàng</option>
+          <option value="khac">Khác</option>
+        </select>
+
+        <label class="field-label">Ghi chú (không bắt buộc)</label>
+        <input type="text" id="unpacked-note" placeholder="Ghi chú thêm nếu cần…" autocomplete="off" />
+
+        <button class="btn" id="unpacked-submit">Ghi lại đơn chưa đóng</button>
+        <div class="toast" id="unpacked-toast"></div>
+        <p class="hint">Quét mã rồi nhấn Enter trong ô mã đơn để lưu nhanh, không cần bấm nút — nhớ chọn đúng lý do trước khi quét liên tục.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-head">
+          <h2>Đơn chưa đóng hôm nay</h2>
+          <span class="count-chip" id="unpacked-count">0 đơn</span>
+        </div>
+        <p class="hint" style="margin:0 0 10px;">Ghi nhầm thì bấm <b>Xoá</b> ngay trên dòng đó. Danh sách chỉ để theo dõi, không có bước đánh dấu đã đóng xong.</p>
+        <div class="twrap">
+          <table>
+            <thead><tr><th>Mã đơn</th><th>Sàn</th><th>Lý do</th><th>Ghi chú</th><th>Người ghi</th><th>Giờ</th><th></th></tr></thead>
+            <tbody id="unpacked-today-body"><tr class="empty-row"><td colspan="7">Chưa có đơn nào được ghi hôm nay.</td></tr></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
   </section>
 
   <div class="scan-modal" id="scan-modal" hidden>
@@ -653,6 +692,7 @@
   var T_REPORTS = "monthly_reports"; // sở hữu bởi Sổ Vận Hành — chỉ đọc
   var T_ERRLOG = "warehouse_error_log"; // sổ "Thống kê lỗi" — quản lý ghi tay, độc lập với warehouse_return_checks
   var T_NOTICES = "warehouse_notices"; // "Việc cần làm" — banner nhắc việc, hiện ở mọi tab
+  var T_UNPACKED = "warehouse_unpacked_log"; // đơn đã in nhưng chưa đóng được trong ngày (thiếu hàng, lỗi hàng…)
 
   var PLATFORMS = { tiktok: "TikTok Shop", shopee: "Shopee" };
   var PLATFORM_TO_SANPHAM = { tiktok: "TikTok", shopee: "Shopee" }; // giá trị field `sanPham` trong hoanVeKhoDetail
@@ -689,6 +729,8 @@
   var STATUS_LABELS = { none:"Không cần", pending:"Chờ xử lý", submitted:"Đã gửi khiếu nại", resolved:"Đã xử lý xong", lost:"Xác nhận thất lạc" };
   var COMPLAINT_RESULT_LABELS = { thanh_cong:"Thành công", that_bai:"Thất bại" };
   var RTYPE_LABELS = { boom:"Huỷ / Bom hàng", doi_tra:"Hoàn trả" };
+  // Lý do đơn đã in nhưng chưa đóng được trong ngày.
+  var UNPACKED_REASON_LABELS = { thieu_hang:"Thiếu hàng", loi_hang:"Lỗi hàng", khac:"Khác" };
   var RECON_PERIODS = 3; // gộp 3 kỳ báo cáo gần nhất khi đối chiếu tự động
 
   /* Tự nhận diện sàn qua mã vận đơn (mã đơn vị vận chuyển in trên tem):
@@ -905,6 +947,7 @@
     tab: "returns",
     returnsPlatform: "tiktok",
     outboundPlatform: null,
+    unpackedPlatform: null,
     returnsRtype: "doi_tra",
     listsType: "returns",
     returnsManual: false,
@@ -1172,7 +1215,7 @@
     });
     stopPoll();
     if(tab === "returns"){ loadReturnsToday(); startPoll(loadReturnsToday); }
-    if(tab === "outbound"){ loadOutboundToday(); startPoll(loadOutboundToday); }
+    if(tab === "outbound"){ loadOutboundToday(); loadUnpackedToday(); startPoll(function(){ loadOutboundToday(); loadUnpackedToday(); }); }
     if(tab === "dashboard") loadDashboard();
     if(tab === "lists") loadLists();
     if(tab === "errorlog") loadErrorLog();
@@ -1234,6 +1277,7 @@
   }
   wirePlatformBadge("returns-code","returns-platform-badge","returnsPlatform");
   wirePlatformBadge("outbound-code","outbound-platform-badge","outboundPlatform");
+  wirePlatformBadge("unpacked-code","unpacked-platform-badge","unpackedPlatform");
   $("returns-code").addEventListener("input", function(){ checkErrorLogWarning($("returns-code").value.trim()); });
 
   /* ---------------- connectivity ---------------- */
@@ -1553,6 +1597,72 @@
     });
   }
   $("outbound-code").addEventListener("keydown", function(e){ if(e.key === "Enter"){ e.preventDefault(); submitOutbound(); } });
+
+  /* ---------------- Đơn đã in nhưng chưa đóng được (thiếu hàng, lỗi hàng…) ----------------
+     Chỉ là sổ ghi để theo dõi trong ngày — không có trạng thái "đã xong", ghi nhầm thì xoá tay. */
+  function loadUnpackedToday(){
+    sbGet(T_UNPACKED+"?scan_date=eq."+todayStr()+"&order=created_at.desc").then(function(rows){
+      renderUnpackedToday(rows);
+    }).catch(function(){});
+  }
+  function renderUnpackedToday(rows){
+    var body = $("unpacked-today-body");
+    if(!rows.length){
+      body.innerHTML = '<tr class="empty-row"><td colspan="7">Chưa có đơn nào được ghi hôm nay.</td></tr>';
+    } else {
+      body.innerHTML = rows.map(function(e){
+        var sw = e.platform ? '<span class="sw" style="width:8px;height:8px;border-radius:50%;background:var(--'+e.platform+');display:inline-block;margin-right:6px;"></span>' : "";
+        return '<tr data-id="'+e.id+'">' +
+          '<td class="mono">'+sw+escapeHtml(e.code)+'</td>' +
+          '<td>'+(e.platform ? PLATFORMS[e.platform] : "—")+'</td>' +
+          '<td>'+escapeHtml(UNPACKED_REASON_LABELS[e.reason] || e.reason || "—")+'</td>' +
+          '<td>'+escapeHtml(e.note || "—")+'</td>' +
+          '<td>'+escapeHtml(e.staff || "—")+'</td>' +
+          '<td class="tabular">'+fmtTime(e.created_at)+'</td>' +
+          '<td class="row-actions"><button type="button" class="del" data-id="'+e.id+'">Xoá</button></td>' +
+        '</tr>';
+      }).join("");
+    }
+    $("unpacked-count").textContent = rows.length+" đơn";
+  }
+  $("unpacked-today-body").addEventListener("click", function(e){
+    var delBtn = e.target.closest("button.del");
+    if(!delBtn) return;
+    var id = delBtn.getAttribute("data-id");
+    if(!confirm("Xoá dòng này khỏi danh sách đơn chưa đóng? Thao tác này không hoàn tác được.")) return;
+    delBtn.disabled = true; delBtn.textContent = "Đang xoá…";
+    deleteById(T_UNPACKED, id).then(function(){
+      loadUnpackedToday();
+    }).catch(function(err){
+      delBtn.disabled = false; delBtn.textContent = "Xoá";
+      console.error(err);
+      alert("Xoá thất bại, thử lại.");
+    });
+  });
+  function submitUnpacked(){
+    var codeInput = $("unpacked-code");
+    var code = codeInput.value.trim();
+    if(!code) return;
+    if(!state.connected){ showToast("unpacked-toast","err","Chưa kết nối được dữ liệu, thử lại sau."); return; }
+    if(!state.staffName){ showToast("unpacked-toast","err","Nhập tên nhân viên ở góc trên trước đã."); staffInput.focus(); return; }
+    var platform = state.unpackedPlatform;
+    var reason = $("unpacked-reason").value;
+    var note = $("unpacked-note").value.trim();
+    var staff = state.staffName;
+    insertRow(T_UNPACKED, { code: code, platform: platform, reason: reason, note: note || null, staff: staff, scan_date: todayStr() }).then(function(){
+      showToast("unpacked-toast","ok","Đã ghi đơn "+code+" chưa đóng được.");
+      codeInput.value = "";
+      state.unpackedPlatform = null;
+      $("unpacked-platform-badge").innerHTML = '<span class="sw" style="width:8px;height:8px;border-radius:50%;background:var(--ink-3);display:inline-block;"></span> Chưa nhận diện được sàn — quét hoặc gõ mã vào ô trên';
+      codeInput.focus();
+      loadUnpackedToday();
+    }, function(err){
+      showToast("unpacked-toast","err","Có lỗi khi lưu, thử lại.");
+      console.error(err);
+    });
+  }
+  $("unpacked-submit").addEventListener("click", submitUnpacked);
+  $("unpacked-code").addEventListener("keydown", function(e){ if(e.key === "Enter"){ e.preventDefault(); submitUnpacked(); } });
 
   /* ---------------- quét mã bằng camera điện thoại (dự phòng khi máy quét hỏng) ----------------
      Dùng thư viện ZXing (chạy hoàn toàn bằng JS, xử lý qua canvas) thay vì API BarcodeDetector của
