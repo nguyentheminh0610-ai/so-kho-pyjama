@@ -834,6 +834,37 @@
       return res.json();
     });
   }
+  /* Lấy TOÀN BỘ dòng khớp điều kiện, từng trang SB_PAGE dòng bằng limit/offset.
+     PostgREST (Supabase) cắt cứng tối đa 1000 dòng mỗi lần gọi dù có ghi limit lớn hơn, nên
+     các truy vấn theo tháng (đơn đi ~1000+/tháng) phải gom nhiều trang mới đủ.
+     - path KHÔNG được chứa sẵn limit/offset; nên có order ổn định (vd. order=id.asc) để các trang không trùng/sót.
+     - Gửi Prefer: count=exact để đọc tổng từ Content-Range (vd. "0-999/1084") và dừng đúng chỗ;
+       nếu không đọc được header thì dừng khi một trang trả về ít hơn SB_PAGE dòng. */
+  var SB_PAGE = 1000;
+  function sbGetAll(path){
+    var sep = path.indexOf("?") === -1 ? "?" : "&";
+    var all = [];
+    function fetchPage(offset){
+      var url = sbUrl(path + sep + "limit=" + SB_PAGE + "&offset=" + offset);
+      return fetch(url, { headers: sbHeaders({ "Prefer": "count=exact" }) }).then(function(res){
+        if(res.status === 416) return all; // offset vượt quá tổng số dòng (PGRST103) = đã lấy hết
+        if(!res.ok) return res.text().then(function(t){ throw new Error("HTTP "+res.status+": "+t); });
+        var total = null;
+        var cr = res.headers.get("Content-Range") || "";
+        var m = /\/(\d+)\s*$/.exec(cr);
+        if(m) total = parseInt(m[1], 10);
+        return res.json().then(function(rows){
+          if(!Array.isArray(rows)) rows = [];
+          all = all.concat(rows);
+          if(rows.length === 0) return all;
+          if(total !== null){ if(all.length >= total) return all; }
+          else if(rows.length < SB_PAGE) return all;
+          return fetchPage(offset + rows.length);
+        });
+      });
+    }
+    return fetchPage(0);
+  }
   function insertRow(table, row){
     return fetch(sbUrl(table), { method:"POST", headers: sbHeaders({ "Prefer":"return=representation" }), body: JSON.stringify(row) })
       .then(function(res){
@@ -1759,7 +1790,7 @@
       var platforms = ["tiktok","shopee"];
       return Promise.all(platforms.map(function(platform){
         var sanPham = PLATFORM_TO_SANPHAM[platform];
-        return sbGet(T_RETURNS+"?platform=eq."+platform+"&select=code,oid").then(function(whRows){
+        return sbGetAll(T_RETURNS+"?platform=eq."+platform+"&select=code,oid&order=id.asc").then(function(whRows){
           var byCode = {}, byOid = {};
           whRows.forEach(function(r){ byCode[r.code] = r; if(r.oid) byOid[r.oid] = r; });
           var plEntries = [];
@@ -1805,12 +1836,12 @@
       : Promise.resolve(null);
 
     Promise.all([
-      sbGet(T_RETURNS+"?scan_date=gte."+monthStart+"&scan_date=lte."+end+"&select=platform"),
-      sbGet(T_OUTBOUND+"?scan_date=gte."+monthStart+"&scan_date=lte."+end+"&select=platform"),
-      sbGet(T_MATCH+"?status=eq.pending&select=platform,match_key,loai,updated_at&order=updated_at.asc"),
+      sbGetAll(T_RETURNS+"?scan_date=gte."+monthStart+"&scan_date=lte."+end+"&select=platform&order=id.asc"),
+      sbGetAll(T_OUTBOUND+"?scan_date=gte."+monthStart+"&scan_date=lte."+end+"&select=platform&order=id.asc"),
+      sbGetAll(T_MATCH+"?status=eq.pending&select=platform,match_key,loai,updated_at&order=updated_at.asc,id.asc"),
       surplusQuery,
-      sbGet(T_RETURNS+"?has_problem=eq.true&scan_date=gte."+monthStart+"&scan_date=lte."+end+"&select=complaint_status,complaint_result"),
-      sbGet(T_ERRLOG+"?created_at=gte."+monthStart+"T00:00:00&created_at=lte."+end+"T23:59:59&select=error_type")
+      sbGetAll(T_RETURNS+"?has_problem=eq.true&scan_date=gte."+monthStart+"&scan_date=lte."+end+"&select=complaint_status,complaint_result&order=id.asc"),
+      sbGetAll(T_ERRLOG+"?created_at=gte."+monthStart+"T00:00:00&created_at=lte."+end+"T23:59:59&select=error_type&order=id.asc")
     ]).then(function(results){
       var returnsRows = results[0];
       var outboundRows = results[1];
@@ -2090,7 +2121,7 @@
     var range = rangeFromSelect($("review-range").value, $("review-month").value);
     btn.disabled = true; btn.textContent = "Đang xuất…";
     loadXlsxLib().then(function(){
-      return sbGet(T_RETURNS+"?scan_date=gte."+range.start+"&scan_date=lte."+range.end+"&order=scan_date.asc,scanned_at.asc&limit=5000");
+      return sbGetAll(T_RETURNS+"?scan_date=gte."+range.start+"&scan_date=lte."+range.end+"&order=scan_date.asc,scanned_at.asc,id.asc");
     }).then(function(rows){
       var header = ["Mã vận đơn","Sàn","Loại đơn hoàn","Ngày nhận","Giờ nhận","Người tích","Có vấn đề","Lý do vấn đề",
         "SKU","Số lượng","Danh mục trả","Tình trạng đơn","Lý do trả","Khớp dữ liệu sàn","Trạng thái khiếu nại"];
@@ -2127,9 +2158,9 @@
     listsReturnsEditingCode = null;
     var range = rangeFromSelect($("review-range").value, $("review-month").value);
     var typeFilter = $("review-type-filter").value;
-    var q = T_RETURNS+"?scan_date=gte."+range.start+"&scan_date=lte."+range.end+"&order=scan_date.desc,scanned_at.desc&limit=500";
+    var q = T_RETURNS+"?scan_date=gte."+range.start+"&scan_date=lte."+range.end+"&order=scan_date.desc,scanned_at.desc,id.desc";
     if(typeFilter !== "all") q += "&return_type=eq."+typeFilter;
-    sbGet(q).then(function(rows){
+    sbGetAll(q).then(function(rows){
       var problemOnly = $("review-problem-only").checked;
       var filtered = rows.filter(function(e){
         if(listsMatchFilter === "matched" && !e.matched_in_platform_file) return false;
@@ -2291,7 +2322,7 @@
     var grid = $("outlist-daygrid");
     grid.innerHTML = '<div class="empty-state">Đang tải…</div>';
     var range = rangeFromSelect($("outlist-range").value, $("outlist-month").value);
-    sbGet(T_OUTBOUND+"?scan_date=gte."+range.start+"&scan_date=lte."+range.end+"&order=scanned_at.asc&limit=2000").then(function(rows){
+    sbGetAll(T_OUTBOUND+"?scan_date=gte."+range.start+"&scan_date=lte."+range.end+"&order=scanned_at.asc,id.asc").then(function(rows){
       outlistCache.rows = rows;
       outlistCache.days = daysInRange(range.start, range.end);
       renderListsOutbound();
