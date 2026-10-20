@@ -1134,6 +1134,7 @@
       var todayMs = new Date(todayStr() + "T00:00:00").getTime();
       var overdue = [], transit = 0;
       feed.forEach(function(row){
+        if(row.resolved_at) return; /* đã bấm "Đã xử lý — ẩn" */
         if(row.shipment_status !== "returned" && row.shipment_status !== "returning") return;
         if(isScanned(row)) return;
         var ref = row.returned_on || row.created_on;
@@ -1166,6 +1167,7 @@
         '<span class="days">trễ ' + o.days + ' ngày</span>' +
         '<span class="meta">' + escapeHtml(plat) + ' · đơn ' + escapeHtml(r.order_name || "?") + ' · sàn báo về ' + ve +
         (r.return_type === "delivery_failed" ? ' · bom/giao thất bại' : ' · khách đổi trả') + '</span>' +
+        '<button type="button" class="btn ghost small retalert-dismiss" data-id="' + r.id + '" data-code="' + escapeHtml(codeShow) + '" style="width:auto;margin-left:auto;">Đã xử lý — ẩn</button>' +
       '</div>';
     }).join("");
     if(!overdue.length) list.innerHTML = "";
@@ -1176,6 +1178,28 @@
       transitEl.hidden = true;
     }
   }
+  // "Đã xử lý — ẩn": dùng khi kiện KHÔNG thể quét được nữa (xác định mất hàng, đã khiếu nại,
+  // sàn báo sai...) — ghi lý do + người ẩn vào feed, kiện biến mất khỏi cảnh báo ở mọi nơi
+  // (web này, Sổ Vận Hành, báo cáo Telegram). Kiện tìm thấy và quét bình thường thì KHÔNG cần nút này.
+  $("retalert-list").addEventListener("click", function(e){
+    var btn = e.target.closest(".retalert-dismiss");
+    if(!btn) return;
+    var id = btn.getAttribute("data-id");
+    var code = btn.getAttribute("data-code");
+    if(!confirm('Ẩn kiện "' + code + '" khỏi cảnh báo?\n\nChỉ ẩn khi đã xử lý xong (xác định mất hàng / đã khiếu nại sàn / sàn báo sai...). Nếu kiện về kho thì quét bình thường, không cần ẩn.')) return;
+    var note = prompt("Lý do ẩn (bắt buộc, ghi ngắn gọn — vd: mất hàng, đã khiếu nại sàn 20/10):", "");
+    if(note === null) return;
+    note = note.trim();
+    if(!note){ alert("Phải ghi lý do thì mới ẩn được — để sau còn biết kiện này đi đâu."); return; }
+    btn.disabled = true; btn.textContent = "Đang ẩn…";
+    patchById(T_RETFEED, id, { resolved_at: new Date().toISOString(), resolved_note: note, resolved_by: state.staffName || null }).then(function(){
+      loadReturnAlerts();
+    }).catch(function(err){
+      btn.disabled = false; btn.textContent = "Đã xử lý — ẩn";
+      console.error(err);
+      alert("Ẩn thất bại, thử lại. (Nếu lỗi nhắc cột resolved_at: bảng chưa thêm cột, báo chủ shop chạy SQL bổ sung.)");
+    });
+  });
 
   /* ---------------- notice board (Việc cần làm) ---------------- */
   // Banner cố định, hiện ở mọi tab — quản lý ghi việc cần làm (kèm link đơn hàng và/hoặc file PDF tuỳ chọn),
