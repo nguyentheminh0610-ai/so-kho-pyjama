@@ -93,23 +93,35 @@
   .staffbox .dot.on{ background:var(--good); }
   .staffbox .dot.off{ background:var(--crit); }
   .staffbox span.label{ font-size:12px; color:var(--ink-3); }
-  .staffbox input{ border:none; background:transparent; font-size:13px; font-weight:600; color:var(--ink); width:112px; padding:4px 2px; }
-  .staffbox input:focus{ outline:none; }
-  .staffbox button{ border:none; background:var(--accent-soft); color:var(--accent-soft-ink); font-size:12px; font-weight:600;
-    padding:6px 11px; border-radius:999px; cursor:pointer; }
-  .staffbox .hist-toggle{ background:transparent; color:var(--ink-3); font-size:13px; padding:6px 5px; }
-  .staffbox .hist-toggle:hover{ color:var(--ink); }
-  .staff-history{ position:absolute; top:calc(100% + 6px); right:0; min-width:190px; max-width:260px;
-    background:var(--surface); border:1px solid var(--border); border-radius:10px; box-shadow:var(--shadow);
-    padding:6px; z-index:40; max-height:280px; overflow-y:auto; }
-  .staff-history .hist-empty{ padding:9px 10px; font-size:12.5px; color:var(--ink-3); }
-  .staff-history .hist-item{ display:flex; align-items:center; justify-content:space-between; gap:8px;
-    padding:8px 10px; border-radius:7px; cursor:pointer; font-size:13px; }
-  .staff-history .hist-item:hover{ background:var(--surface-3); }
-  .staff-history .hist-item .name{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-  .staff-history .hist-item .rm{ border:none; background:transparent; color:var(--ink-3); font-size:13px;
-    line-height:1; padding:3px 6px; border-radius:6px; flex:none; }
-  .staff-history .hist-item .rm:hover{ background:var(--crit-soft); color:var(--crit-ink); }
+  /* Chọn người trực bằng NÚT BẤM, không còn ô gõ tên tự do: máy quét mã vạch chỉ
+     bắn ký tự vào ô input đang focus, nên bỏ hẳn input là hết cảnh mã vận đơn bị
+     ghi nhầm vào cột nhân viên (đã xảy ra 170 dòng, 10/2026). */
+  .staff-chips{ display:flex; align-items:center; gap:5px; flex-wrap:wrap; }
+  .staff-chip{ border:1px solid var(--border); background:var(--surface-2); color:var(--ink-2); font-size:13px; font-weight:600;
+    padding:6px 13px; border-radius:999px; cursor:pointer; line-height:1.2; }
+  .staff-chip:hover{ background:var(--surface-3); }
+  .staff-chip.on{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
+  .staff-chip.add{ background:transparent; color:var(--ink-3); font-weight:700; padding:6px 10px; }
+  .staff-chip.add:hover{ color:var(--accent); }
+  .staffbox.none-selected{ border-color:var(--crit); background:var(--crit-soft); }
+  .staffbox.none-selected span.label{ color:var(--crit-ink); font-weight:700; }
+  @keyframes staffPing{ 0%,100%{ transform:scale(1); } 35%{ transform:scale(1.045); } }
+  .staffbox.ping{ animation:staffPing .5s ease 2; }
+  /* Màn bắt buộc chọn người trực khi mở app (hỏi lại mỗi ngày mới) — quên chọn
+     tên là hỏng toàn bộ dữ liệu chấm công/lương theo người. */
+  .staffgate{ position:fixed; inset:0; z-index:200; background:rgba(22,20,18,.55); backdrop-filter:blur(3px);
+    display:flex; align-items:center; justify-content:center; padding:20px; }
+  .staffgate[hidden]{ display:none; }
+  .staffgate-card{ background:var(--surface); border-radius:16px; box-shadow:0 18px 50px rgba(0,0,0,.28);
+    padding:26px 24px 22px; width:100%; max-width:420px; text-align:center; }
+  .staffgate-card h2{ margin:0 0 4px; font-size:19px; font-weight:700; }
+  .staffgate-card p{ margin:0 0 18px; font-size:13px; color:var(--ink-3); }
+  .staffgate-list{ display:flex; flex-direction:column; gap:9px; }
+  .staffgate-list button{ width:100%; border:1px solid var(--border); background:var(--surface-2); color:var(--ink);
+    font-size:16px; font-weight:700; padding:14px 16px; border-radius:11px; cursor:pointer; }
+  .staffgate-list button:hover{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
+  .staffgate-list button.add{ background:transparent; color:var(--ink-3); font-size:13.5px; font-weight:600; padding:11px; }
+  .staffgate-list button.add:hover{ background:var(--surface-3); color:var(--accent); border-color:var(--border); }
 
   #conn-msg{ display:none; margin:0 4px 14px; padding:10px 13px; border-radius:10px; background:var(--crit-soft); color:var(--crit-ink);
     font-size:12.5px; font-weight:600; }
@@ -140,6 +152,18 @@
   .kpi .foot.warn{ color:var(--warn-ink); }
   .kpi .foot.crit{ color:var(--crit-ink); }
   .kpi .foot.good{ color:var(--good-ink); }
+  .kpi .val.good{ color:var(--good-ink); }
+  .kpi .val.warn{ color:var(--warn-ink); }
+  .kpi .val.crit{ color:var(--crit-ink); }
+  /* bảng lương (mục 6) — mỗi dòng là 1 cấu phần của quy chế, nhân viên tự đối chiếu được */
+  .pay-row{ display:flex; align-items:baseline; justify-content:space-between; gap:12px;
+    padding:8px 0; border-bottom:1px dashed var(--border-soft); font-size:13.5px; }
+  .pay-row:last-child{ border-bottom:none; }
+  .pay-label{ color:var(--ink-2); }
+  .pay-value{ font-weight:600; white-space:nowrap; }
+  .pay-total{ margin-top:4px; padding-top:11px; border-top:2px solid var(--border); border-bottom:none; }
+  .pay-total .pay-label{ font-weight:800; color:var(--ink); letter-spacing:.3px; }
+  .pay-total .pay-value{ font-family:"Sora"; font-size:19px; font-weight:800; }
   .kpi-compound{ grid-column:span 2; }
   .kpi-dots .dots{ display:flex; flex-wrap:wrap; gap:5px 16px; font-size:12px; color:var(--ink-2); margin-top:2px; }
   .kpi-dots .dots b{ font-weight:700; margin-left:2px; }
@@ -341,13 +365,18 @@
         <p>Tích đơn hoàn · đơn gửi đi · theo dõi shipper chưa trả</p>
       </div>
     </div>
-    <div class="staffbox">
+    <div class="staffbox" id="staffbox">
       <span class="dot off" id="conn-dot" title="Trạng thái kết nối dữ liệu"></span>
-      <span class="label">Nhân viên</span>
-      <input id="staff-input" type="text" placeholder="Tên của bạn" maxlength="40" autocomplete="off" />
-      <button type="button" class="hist-toggle" id="staff-history-toggle" title="Chọn lại tên đã lưu trước đó">▾</button>
-      <button id="staff-save">Lưu</button>
-      <div class="staff-history" id="staff-history" hidden></div>
+      <span class="label">Đang trực</span>
+      <div class="staff-chips" id="staff-chips"></div>
+    </div>
+  </div>
+
+  <div class="staffgate" id="staffgate" hidden>
+    <div class="staffgate-card">
+      <h2>Hôm nay ai đang trực?</h2>
+      <p>Chọn tên để mọi đơn quét hôm nay ghi đúng người — dùng để chấm công và tính lương.</p>
+      <div class="staffgate-list" id="staffgate-list"></div>
     </div>
   </div>
 
@@ -414,6 +443,7 @@
     <button data-tab="dashboard">3. Tổng quan</button>
     <button data-tab="lists">4. Danh sách <span class="n" id="lists-badge" hidden>0</span></button>
     <button data-tab="errorlog">5. Thống kê lỗi</button>
+    <button data-tab="payroll">6. Lương</button>
   </nav>
 
   <!-- ================= 1. RETURNS ================= -->
@@ -685,6 +715,32 @@
           <tbody id="errlog-body"><tr class="empty-row"><td colspan="5">Đang tải…</td></tr></tbody>
         </table>
       </div>
+    </div>
+  </section>
+
+  <!-- ================= 6. PAYROLL (Lương) ================= -->
+  <section class="panel" id="panel-payroll" hidden>
+    <div class="card">
+      <div class="card-head">
+        <h2>Lương theo tháng</h2>
+        <span class="sub" style="margin:0;" id="payroll-season"></span>
+      </div>
+      <p class="sub">Tính thẳng từ số đơn <b>chính người đó đã quét</b> trong Sổ Kho, nên ai cũng xem được và tự đối chiếu.
+        Ngày công = số ngày có quét ít nhất 1 đơn. Thưởng chỉ chốt khi hết tháng; trong tháng là số tạm tính.</p>
+      <div class="filter-row" style="margin-top:0;">
+        <label class="sub" style="margin:0;">Tháng</label>
+        <input type="month" id="payroll-month" style="max-width:170px;" />
+        <button class="btn ghost small" id="payroll-reload">Tính lại</button>
+      </div>
+    </div>
+    <div class="kpi-grid" id="payroll-kpi"></div>
+    <div id="payroll-people"><div class="empty-state">Đang tải…</div></div>
+    <div class="card">
+      <p class="sub" style="margin:0;"><b>Cách tính</b> (quy chế chốt 20/10/2026) — Lương chính = số đơn đã quét × 500đ, nếu thấp hơn lương sàn theo mùa
+        thì lấy lương sàn (cao điểm 1/9–hết 2: 3.000.000đ · thấp điểm 1/3–31/8: 1.500.000đ). Cộng thêm công tích đơn hoàn
+        2.000đ/đơn khách trả (kiện huỷ chưa đi không tính). Thưởng chuyên cần 500.000đ nếu đi làm đủ cả tháng; thưởng chất lượng
+        theo tỷ lệ lỗi Kho vận chung của kho (&lt;0,5% được 500.000đ · 0,5–1% được 250.000đ · trên 1% không có).
+        Thưởng gắn bó 1.000.000đ mỗi 6 tháng làm liên tục — khoản này chủ shop tự cộng khi tới kỳ, sổ không tự tính.</p>
     </div>
   </section>
 
@@ -1038,75 +1094,130 @@
 
   var $ = function(id){ return document.getElementById(id); };
   var connDot = $("conn-dot");
-  var staffInput = $("staff-input");
-  var staffHistoryEl = $("staff-history");
-  staffInput.value = state.staffName;
+  /* ---------------- chọn người đang trực (viết lại 20/10/2026) ----------------
+     Trước đây là 1 ô input gõ tay + nút "Lưu": khi chưa có tên, app gọi
+     staffInput.focus() rồi nhân viên quét tiếp -> máy quét bắn MÃ VẬN ĐƠN thẳng
+     vào ô tên (170 dòng hỏng trong tháng 10), và cùng 1 người gõ 2 kiểu
+     ("minh" / "Minh Nguyễn Thế") nên không chấm công/tính lương theo người được.
+     Nay: chọn bằng NÚT BẤM (không còn input thường trực để máy quét bắn vào),
+     tên lấy từ danh sách chuẩn; thêm người mới phải qua hộp thoại có kiểm tra.
+     Lương nhân viên đóng đơn tính theo số đơn CHÍNH NGƯỜI ĐÓ quét (chốt với chủ
+     shop 20/10/2026) nên cột staff phải sạch tuyệt đối. */
+  var STAFF_ROSTER_KEY = "kho_staff_roster";      // danh sách tên trên máy này
+  var STAFF_DEFAULT_ROSTER = ["Giáp", "Minh"];    // tên đang dùng thật trong dữ liệu
+  var staffChipsEl = $("staff-chips");
+  var staffBoxEl = $("staffbox");
 
-  /* ---------------- sổ tên nhân viên đã lưu trên thiết bị này (không đồng bộ server) ----------------
-     "kho_staff_name" = tên đang dùng hiện tại (tự điền sẵn mỗi lần mở app, như cũ).
-     "kho_staff_names" = danh sách các tên đã từng lưu trên thiết bị này, mới dùng gần đây nhất lên đầu,
-     để bấm chọn lại nhanh thay vì gõ lại — vd nhiều nhân viên dùng chung 1 máy tính kho. */
-  var STAFF_HISTORY_KEY = "kho_staff_names";
-  var STAFF_HISTORY_MAX = 20;
-  function loadStaffHistory(){
-    try { var arr = JSON.parse(localStorage.getItem(STAFF_HISTORY_KEY) || "[]"); return Array.isArray(arr) ? arr : []; }
-    catch(e){ return []; }
+  function loadStaffRoster(){
+    var arr = [];
+    try { var raw = JSON.parse(localStorage.getItem(STAFF_ROSTER_KEY) || "[]"); if(Array.isArray(raw)) arr = raw; }
+    catch(e){ arr = []; }
+    STAFF_DEFAULT_ROSTER.forEach(function(n){
+      if(!arr.some(function(x){ return x.toLowerCase() === n.toLowerCase(); })) arr.push(n);
+    });
+    return arr.filter(function(n){ return n && typeof n === "string"; });
   }
-  function saveStaffHistory(arr){ localStorage.setItem(STAFF_HISTORY_KEY, JSON.stringify(arr)); }
-  function addStaffToHistory(name){
-    if(!name) return;
-    var arr = loadStaffHistory().filter(function(n){ return n.toLowerCase() !== name.toLowerCase(); });
-    arr.unshift(name);
-    if(arr.length > STAFF_HISTORY_MAX) arr = arr.slice(0, STAFF_HISTORY_MAX);
-    saveStaffHistory(arr);
+  function saveStaffRoster(arr){ localStorage.setItem(STAFF_ROSTER_KEY, JSON.stringify(arr)); }
+
+  // Chặn đúng thứ đã làm hỏng dữ liệu cũ: mã vận đơn/chuỗi mã bị nhập làm tên.
+  function looksLikeTrackingCode(s){
+    var v = String(s || "").trim();
+    if(/^(SPX|VTP|GHN|GHTK|JT|J&T|VNP)/i.test(v.replace(/\s+/g, ""))) return true;
+    if(/^[0-9]{8,}$/.test(v)) return true;
+    if(v.length >= 12 && /^[A-Za-z0-9]+$/.test(v)) return true;
+    return false;
   }
-  function removeStaffFromHistory(name){
-    saveStaffHistory(loadStaffHistory().filter(function(n){ return n !== name; }));
-    renderStaffHistory();
-  }
+
+  var STAFF_DATE_KEY = "kho_staff_date";   // ngày đã chọn người trực gần nhất
   function setStaffName(name){
-    state.staffName = name;
-    staffInput.value = name;
-    localStorage.setItem("kho_staff_name", name);
-    if(name) addStaffToHistory(name);
+    state.staffName = name || "";
+    if(name){
+      localStorage.setItem("kho_staff_name", name);
+      localStorage.setItem(STAFF_DATE_KEY, todayStr());
+    } else {
+      localStorage.removeItem("kho_staff_name");
+      localStorage.removeItem(STAFF_DATE_KEY);
+    }
+    renderStaffChips();
+    if(name) closeStaffGate();
   }
-  function renderStaffHistory(){
-    var arr = loadStaffHistory();
-    staffHistoryEl.innerHTML = arr.length
-      ? arr.map(function(n){
-          return '<div class="hist-item" data-name="'+escapeHtml(n)+'">' +
-            '<span class="name">'+escapeHtml(n)+'</span>' +
-            '<button type="button" class="rm" data-rm="'+escapeHtml(n)+'" title="Xoá tên này khỏi danh sách">✕</button>' +
-          '</div>';
-        }).join("")
-      : '<div class="hist-empty">Chưa có tên nào được lưu</div>';
+  function renderStaffChips(){
+    var roster = loadStaffRoster();
+    var cur = state.staffName || "";
+    staffChipsEl.innerHTML = roster.map(function(n){
+      var on = n.toLowerCase() === cur.toLowerCase();
+      return '<button type="button" class="staff-chip'+(on ? " on" : "")+'" data-staff="'+escapeHtml(n)+'">'+escapeHtml(n)+'</button>';
+    }).join("") + '<button type="button" class="staff-chip add" id="staff-add" title="Thêm người mới vào danh sách máy này">+</button>';
+    staffBoxEl.classList.toggle("none-selected", !cur);
   }
-  function closeStaffHistory(){ staffHistoryEl.hidden = true; }
-  function toggleStaffHistory(){
-    if(staffHistoryEl.hidden){ renderStaffHistory(); staffHistoryEl.hidden = false; }
-    else closeStaffHistory();
+  function addStaffMember(){
+    var name = prompt("Tên người mới (viết đúng 1 kiểu duy nhất, ví dụ: Giáp):", "");
+    if(name === null) return;
+    name = String(name).trim().replace(/\s+/g, " ");
+    if(!name) return;
+    if(looksLikeTrackingCode(name)){
+      alert('"' + name + '" trông như MÃ VẬN ĐƠN, không phải tên người.\n\nCó thể máy quét vừa bắn vào ô nhập — gõ lại tên bằng bàn phím nhé.');
+      return;
+    }
+    if(name.length > 40){ alert("Tên dài quá (tối đa 40 ký tự)."); return; }
+    var roster = loadStaffRoster();
+    var existed = roster.filter(function(n){ return n.toLowerCase() === name.toLowerCase(); })[0];
+    if(existed){ setStaffName(existed); return; }  // đã có, chỉ chọn lại — tránh 2 kiểu viết
+    roster.push(name);
+    saveStaffRoster(roster);
+    setStaffName(name);
   }
-  // Nhập cũ (nếu có) từ trước khi có sổ tên -> ghi vào sổ luôn cho khỏi mất.
-  if(state.staffName && !loadStaffHistory().some(function(n){ return n.toLowerCase() === state.staffName.toLowerCase(); })){
-    addStaffToHistory(state.staffName);
+  // Nhắc chọn tên: làm nổi khu chọn người thay vì focus vào ô nhập như trước
+  // (chính cú focus đó khiến máy quét bắn mã vận đơn vào cột nhân viên).
+  function promptPickStaff(){
+    staffBoxEl.classList.remove("ping");
+    void staffBoxEl.offsetWidth;
+    staffBoxEl.classList.add("ping");
+    try { staffBoxEl.scrollIntoView({ block: "nearest", behavior: "smooth" }); } catch(e){}
   }
 
-  $("staff-history-toggle").addEventListener("click", function(e){ e.stopPropagation(); toggleStaffHistory(); });
-  staffHistoryEl.addEventListener("click", function(e){
-    var rmBtn = e.target.closest("[data-rm]");
-    if(rmBtn){ e.stopPropagation(); removeStaffFromHistory(rmBtn.getAttribute("data-rm")); return; }
-    var item = e.target.closest(".hist-item");
-    if(item){ setStaffName(item.getAttribute("data-name")); closeStaffHistory(); }
-  });
-  document.addEventListener("click", function(e){
-    if(!staffHistoryEl.hidden && !e.target.closest(".staffbox")) closeStaffHistory();
+  staffChipsEl.addEventListener("click", function(e){
+    if(e.target.closest("#staff-add")){ addStaffMember(); return; }
+    var chip = e.target.closest("[data-staff]");
+    if(chip) setStaffName(chip.getAttribute("data-staff"));
   });
 
-  $("staff-save").addEventListener("click", function(){
-    setStaffName(staffInput.value.trim());
-    staffInput.blur();
+  /* ---------------- màn BẮT BUỘC chọn người trực (20/10/2026, chủ shop yêu cầu) ----------------
+     Quên chọn tên là hỏng dữ liệu chấm công/lương của cả ngày, nên chặn hẳn lối
+     vào thay vì chỉ nhắc. Hỏi lại khi sang NGÀY MỚI (ca có thể đổi người); trong
+     cùng ngày đã chọn rồi thì mở app/F5 không hỏi lại cho đỡ vướng. */
+  var staffGateEl = $("staffgate");
+  var staffGateListEl = $("staffgate-list");
+  function closeStaffGate(){ staffGateEl.hidden = true; }
+  function openStaffGate(){
+    staffGateListEl.innerHTML = loadStaffRoster().map(function(n){
+      return '<button type="button" data-staff="'+escapeHtml(n)+'">'+escapeHtml(n)+'</button>';
+    }).join("") + '<button type="button" class="add" id="staffgate-add">+ Người khác</button>';
+    staffGateEl.hidden = false;
+  }
+  staffGateListEl.addEventListener("click", function(e){
+    if(e.target.closest("#staffgate-add")){ addStaffMember(); return; }
+    var btn = e.target.closest("[data-staff]");
+    if(btn) setStaffName(btn.getAttribute("data-staff"));
   });
-  staffInput.addEventListener("keydown", function(e){ if(e.key === "Enter"){ $("staff-save").click(); } });
+  function requireStaffForToday(){
+    var pickedOn = localStorage.getItem(STAFF_DATE_KEY);
+    if(!state.staffName || pickedOn !== todayStr()) openStaffGate();
+  }
+
+  // Tên cũ đã lưu trên máy (kể cả bản gõ tay trước đây) -> đưa vào danh sách,
+  // trừ khi đó là mã vận đơn do lỗi cũ thì bỏ đi và bắt chọn lại.
+  if(state.staffName && looksLikeTrackingCode(state.staffName)) state.staffName = "";
+  if(state.staffName){
+    var roster0 = loadStaffRoster();
+    if(!roster0.some(function(n){ return n.toLowerCase() === state.staffName.toLowerCase(); })){
+      roster0.push(state.staffName); saveStaffRoster(roster0);
+    }
+  }
+  // chỉ vẽ lại chip, KHÔNG gọi setStaffName (nó sẽ đóng dấu ngày hôm nay và làm
+  // mất cơ chế hỏi lại mỗi ngày mới)
+  renderStaffChips();
+  requireStaffForToday();
 
   /* ---------------- cảnh báo "Hoàn về chưa nhận" (đối chiếu Sapo ↔ sổ kho) ---------------- */
   // Bảng platform_returns_feed do job hàng ngày trên PC trực ghi (nguồn: Sapo /admin/order_returns.json).
@@ -1373,7 +1484,7 @@
   $("notice-save").addEventListener("click", addNotice);
 
   /* ---------------- tab nav ---------------- */
-  var tabs = ["returns","outbound","dashboard","lists","errorlog"];
+  var tabs = ["returns","outbound","dashboard","lists","errorlog","payroll"];
   document.getElementById("tabnav").addEventListener("click", function(e){
     var btn = e.target.closest("button[data-tab]");
     if(!btn) return;
@@ -1394,6 +1505,7 @@
     if(tab === "dashboard") loadDashboard();
     if(tab === "lists") loadLists();
     if(tab === "errorlog") loadErrorLog();
+    if(tab === "payroll") loadPayroll();
   }
   function startPoll(fn){ stopPoll(); state.pollTimer = setInterval(fn, 6000); }
   function stopPoll(){ if(state.pollTimer){ clearInterval(state.pollTimer); state.pollTimer = null; } }
@@ -1625,7 +1737,7 @@
     var code = norm.code;
     if(!code) return;
     if(!state.connected){ showToast("returns-toast","err","Chưa kết nối được dữ liệu, thử lại sau."); return; }
-    if(!state.staffName){ showToast("returns-toast","err","Nhập tên nhân viên ở góc trên trước đã."); staffInput.focus(); return; }
+    if(!state.staffName){ showToast("returns-toast","err","Chọn tên người đang trực ở góc trên trước đã."); promptPickStaff(); return; }
 
     var rtype = state.returnsRtype;
     var hasProblem = rtype === "doi_tra" && returnsProblemToggle.checked;
@@ -1744,7 +1856,7 @@
     var code = norm.code;
     if(!code) return;
     if(!state.connected){ showToast("outbound-toast","err","Chưa kết nối được dữ liệu, thử lại sau."); return; }
-    if(!state.staffName){ showToast("outbound-toast","err","Nhập tên nhân viên ở góc trên trước đã."); staffInput.focus(); return; }
+    if(!state.staffName){ showToast("outbound-toast","err","Chọn tên người đang trực ở góc trên trước đã."); promptPickStaff(); return; }
     if(!state.outboundPlatform){ showToast("outbound-toast","err","Chưa nhận diện được sàn qua mã này — kiểm tra lại mã vận đơn."); return; }
 
     var suspect = findSuspectedDupToday(code);
@@ -1828,7 +1940,7 @@
     var code = norm.code;
     if(!code) return;
     if(!state.connected){ showToast("unpacked-toast","err","Chưa kết nối được dữ liệu, thử lại sau."); return; }
-    if(!state.staffName){ showToast("unpacked-toast","err","Nhập tên nhân viên ở góc trên trước đã."); staffInput.focus(); return; }
+    if(!state.staffName){ showToast("unpacked-toast","err","Chọn tên người đang trực ở góc trên trước đã."); promptPickStaff(); return; }
     var platform = state.unpackedPlatform;
     var reason = $("unpacked-reason").value;
     var note = $("unpacked-note").value.trim();
@@ -2051,6 +2163,19 @@
             errBarRow("Sản phẩm", errSanPham, "var(--warn-ink)") +
             errBarRow("Khách quan", errKhachQuan, "var(--crit-ink)") +
           '</div></div>';
+      // Tỷ lệ lỗi Kho vận — chỉ số quyết định thưởng chất lượng của nhân viên kho
+      // (quy chế 20/10/2026), đưa lên Tổng quan để theo dõi cả tháng chứ không
+      // đợi tới lúc chốt lương mới biết đã vượt ngưỡng.
+      var khoVanDenom = returnsRows.length + outboundRows.length;
+      var khoVanRate = khoVanDenom ? errKhoVan / khoVanDenom : null;
+      var rateCls = khoVanRate === null ? "" : (khoVanRate < 0.005 ? "good" : (khoVanRate <= 0.01 ? "warn" : "crit"));
+      var rateNote = khoVanRate === null ? "chưa có đơn nào trong tháng"
+        : (khoVanRate < 0.005 ? "dưới 0,5% — thưởng chất lượng đủ 500.000đ"
+          : (khoVanRate <= 0.01 ? "0,5–1% — thưởng chất lượng còn 250.000đ"
+            : "trên 1% — mất thưởng chất lượng"));
+      tilesHtml += '<div class="kpi"><span class="lbl">Tỷ lệ lỗi Kho vận (tháng này)</span>' +
+          '<span class="val tabular '+rateCls+'">'+(khoVanRate === null ? "—" : (khoVanRate*100).toFixed(2).replace(".", ",")+"%")+'</span>' +
+          '<span class="foot">'+errKhoVan+' lỗi / '+khoVanDenom+' đơn · '+rateNote+'</span></div>';
       kpiGrid.innerHTML = tilesHtml;
 
       renderDashOutstanding(outstandingRows);
@@ -2058,6 +2183,184 @@
       updateListsBadge();
     }).catch(function(err){ console.error("dashboard load error", err); });
   }
+  /* ================= 6. LƯƠNG (20/10/2026) =================
+     Tính thẳng từ dữ liệu quét của Sổ Kho, theo quy chế chủ shop chốt 20/10/2026:
+       Lương chính  = MAX(lương sàn theo mùa; số đơn NGƯỜI ĐÓ quét × 500đ)
+       + công tích đơn hoàn = số kiện KHÁCH TRẢ (return_type='doi_tra') × 2.000đ
+         (kiện huỷ chưa đi 'boom' = 0đ — chốt 20/10; chỉ cần quét là tính, không
+          bắt điền đủ sku/số lượng)
+       + thưởng chuyên cần / chất lượng / gắn bó
+     Tỷ lệ lỗi dùng cho thưởng chất lượng tính CHUNG cả kho (chốt 20/10) vì sổ lỗi
+     ghi người NHẬP lỗi chứ không ghi người GÂY lỗi.
+     Mục này cũng là nơi Sổ Vận Hành lấy số chi phí nhân sự cho P&L. */
+  var PAY_PER_ORDER = 500, PAY_PER_RETURN = 2000;
+  var PAY_BASE_HIGH = 3000000, PAY_BASE_LOW = 1500000;
+  var PAY_BONUS_ATTENDANCE = 500000;
+  var payNumFmt = new Intl.NumberFormat("vi-VN");
+  // Người QUẢN LÝ cũng quét đơn nhưng không ăn lương đóng đơn (chủ shop chốt
+  // 20/10/2026) — vẫn hiện số liệu để đối chiếu, chỉ không tính tiền và không
+  // cộng vào tổng chi phí lương đưa sang P&L.
+  var PAY_MANAGERS = ["minh", "Minh Nguyễn Thế"];
+  function payIsManager(name){
+    var v = String(name || "").trim().toLowerCase();
+    return PAY_MANAGERS.some(function(n){ return n.toLowerCase() === v; });
+  }
+  // Mùa cao điểm: 1/9 đến hết tháng 2 (tháng 9,10,11,12,1,2)
+  function payIsHighSeason(month1to12){ return month1to12 >= 9 || month1to12 <= 2; }
+  function payMoney(n){ return payNumFmt.format(Math.round(n)) + "đ"; }
+  // Tên bị hỏng do lỗi cũ (máy quét bắn mã vận đơn vào ô tên) gom riêng, không
+  // tính cho ai — xem phần chọn người trực ở đầu file.
+  function payStaffKey(raw){
+    var v = String(raw || "").trim();
+    if(!v) return "(chưa chọn tên)";
+    if(looksLikeTrackingCode(v)) return "(quét nhầm mã vận đơn)";
+    return v;
+  }
+  function payQualityBonus(rate){
+    if(rate === null) return { amount: 0, note: "chưa có đơn nào để tính tỷ lệ" };
+    if(rate < 0.005) return { amount: 500000, note: "dưới 0,5%" };
+    if(rate <= 0.01) return { amount: 250000, note: "0,5–1%" };
+    return { amount: 0, note: "trên 1% — không có thưởng" };
+  }
+
+  function loadPayroll(){
+    if(!state.connected) return;
+    var monthEl = $("payroll-month");
+    if(!monthEl.value) monthEl.value = thisMonthStr();
+    var m = monthEl.value;
+    var range = monthRange(m);
+    var parts = m.split("-");
+    var year = +parts[0], mon = +parts[1];
+    var high = payIsHighSeason(mon);
+    var base = high ? PAY_BASE_HIGH : PAY_BASE_LOW;
+    var daysInMonth = new Date(year, mon, 0).getDate();
+    var isCurrentMonth = (m === thisMonthStr());
+    var daysElapsed = isCurrentMonth ? new Date().getDate() : daysInMonth;
+
+    $("payroll-season").textContent = (high ? "Mùa cao điểm" : "Mùa thấp điểm") + " · lương sàn " + payMoney(base);
+    $("payroll-people").innerHTML = '<div class="empty-state">Đang tính…</div>';
+    $("payroll-kpi").innerHTML = "";
+
+    Promise.all([
+      sbGetAll(T_OUTBOUND+"?scan_date=gte."+range.start+"&scan_date=lte."+range.end+"&select=staff,scan_date&order=id.asc"),
+      sbGetAll(T_RETURNS+"?scan_date=gte."+range.start+"&scan_date=lte."+range.end+"&select=staff,scan_date,return_type&order=id.asc"),
+      sbGetAll(T_ERRLOG+"?created_at=gte."+range.start+"T00:00:00&created_at=lte."+range.end+"T23:59:59&select=error_type&order=id.asc")
+    ]).then(function(res){
+      var outRows = res[0] || [], retRows = res[1] || [], errRows = res[2] || [];
+      var errKhoVan = errRows.filter(function(e){ return e.error_type === "kho_van"; }).length;
+      // tỷ lệ lỗi chung toàn kho = lỗi kho vận / (đơn hoàn + đơn gửi đi)
+      var denom = retRows.length + outRows.length;
+      var errRate = denom ? errKhoVan / denom : null;
+      var quality = payQualityBonus(errRate);
+
+      var people = {};
+      function person(key){
+        if(!people[key]) people[key] = { name: key, orders: 0, returnsPaid: 0, returnsBoom: 0, days: {} };
+        return people[key];
+      }
+      outRows.forEach(function(r){
+        var p = person(payStaffKey(r.staff));
+        p.orders++; if(r.scan_date) p.days[r.scan_date] = true;
+      });
+      retRows.forEach(function(r){
+        var p = person(payStaffKey(r.staff));
+        if(r.return_type === "boom") p.returnsBoom++; else p.returnsPaid++;
+        if(r.scan_date) p.days[r.scan_date] = true;
+      });
+
+      var list = Object.keys(people).map(function(k){ return people[k]; });
+      if(!list.length){
+        $("payroll-people").innerHTML = '<div class="card"><div class="empty-state">Tháng này chưa có đơn nào được quét.</div></div>';
+        return;
+      }
+      var tong = 0;
+      list.forEach(function(p){
+        p.isManager = payIsManager(p.name);
+        p.isReal = p.name.charAt(0) !== "(" && !p.isManager;
+        p.workDays = Object.keys(p.days).length;
+        p.orderPay = p.orders * PAY_PER_ORDER;
+        p.mainPay = p.isReal ? Math.max(base, p.orderPay) : p.orderPay;
+        p.returnPay = p.returnsPaid * PAY_PER_RETURN;
+        // Chuyên cần chỉ CHỐT khi hết tháng (chủ shop chốt 20/10): tháng đang
+        // chạy mà so với cả tháng thì lúc nào cũng ra "nghỉ N ngày" — vô nghĩa.
+        p.fullAttendance = p.workDays >= daysInMonth;
+        p.onTrack = p.workDays >= daysElapsed;
+        // Người vào làm giữa tháng (vd. Giáp bắt đầu 10/10) không bao giờ đạt
+        // "đủ 30/30" dù đi làm không nghỉ buổi nào, nên tính thêm: kể từ NGÀY
+        // QUÉT ĐẦU TIÊN trong tháng có bỏ ngày nào không. Sổ không tự cộng
+        // thưởng cho trường hợp này — chỉ nêu ra để chủ shop quyết.
+        var dayList = Object.keys(p.days).sort();
+        p.firstDay = dayList[0] || null;
+        if(p.firstDay){
+          var firstDayNum = +p.firstDay.slice(8, 10);
+          p.spanDays = (isCurrentMonth ? daysElapsed : daysInMonth) - firstDayNum + 1;
+          p.noGapSinceStart = p.workDays >= p.spanDays;
+          p.startedMidMonth = firstDayNum > 1;
+        }
+        p.attendancePay = (p.isReal && !isCurrentMonth && p.fullAttendance) ? PAY_BONUS_ATTENDANCE : 0;
+        p.qualityPay = p.isReal ? quality.amount : 0;
+        p.total = p.isReal ? (p.mainPay + p.returnPay + p.attendancePay + p.qualityPay) : 0;
+        if(p.isReal) tong += p.total;
+      });
+      list.sort(function(a, b){ return (b.isReal - a.isReal) || (b.isManager - a.isManager) || (b.total - a.total); });
+
+      var rateCls = errRate === null ? "" : (errRate < 0.005 ? "good" : (errRate <= 0.01 ? "warn" : "crit"));
+      $("payroll-kpi").innerHTML =
+        '<div class="kpi"><span class="lbl">Tổng lương tháng' + (isCurrentMonth ? " (tạm tính)" : "") + '</span>' +
+          '<span class="val tabular">'+payMoney(tong)+'</span>' +
+          '<span class="foot">'+list.filter(function(p){ return p.isReal; }).length+' người · dùng cho P&amp;L</span></div>' +
+        '<div class="kpi"><span class="lbl">Tỷ lệ lỗi Kho vận (chung cả kho)</span>' +
+          '<span class="val tabular '+rateCls+'">'+(errRate === null ? "—" : (errRate*100).toFixed(2).replace(".", ",")+"%")+'</span>' +
+          '<span class="foot">'+errKhoVan+' lỗi / '+denom+' đơn · thưởng chất lượng: '+payMoney(quality.amount)+'</span></div>' +
+        '<div class="kpi"><span class="lbl">Ngày trong tháng</span>' +
+          '<span class="val tabular">'+daysElapsed+'/'+daysInMonth+'</span>' +
+          '<span class="foot">'+(isCurrentMonth ? "tháng đang chạy — thưởng chốt khi hết tháng" : "tháng đã đủ")+'</span></div>';
+
+      $("payroll-people").innerHTML = list.map(function(p){
+        if(p.isManager){
+          return '<div class="card"><div class="card-head"><h2>'+escapeHtml(p.name)+'</h2>' +
+            '<span class="sub" style="margin:0;">quản lý — không tính lương đóng đơn</span></div>' +
+            '<p class="sub" style="margin:0;">Đã quét '+p.orders+' đơn đi · '+p.returnsPaid+' kiện khách trả · '+p.returnsBoom+' kiện huỷ, trong '+
+            Object.keys(p.days).length+' ngày. Số liệu để đối chiếu, không cộng vào tổng chi phí lương.</p></div>';
+        }
+        if(!p.isReal){
+          return '<div class="card"><div class="card-head"><h2>'+escapeHtml(p.name)+'</h2>' +
+            '<span class="sub" style="margin:0;">không tính lương cho ai</span></div>' +
+            '<p class="sub" style="margin:0;">'+p.orders+' đơn đi · '+(p.returnsPaid+p.returnsBoom)+' kiện hoàn bị ghi thiếu/sai tên người quét. ' +
+            'Từ bản cập nhật 20/10 app bắt buộc chọn tên trước khi quét nên số này sẽ không tăng thêm; ' +
+            'các dòng cũ cần chủ shop xác nhận gán cho ai.</p></div>';
+        }
+        var row = function(label, value, note){
+          return '<div class="pay-row"><span class="pay-label">'+label+(note ? ' <span class="sub" style="margin:0;">'+note+'</span>' : '')+'</span>' +
+            '<span class="pay-value tabular">'+value+'</span></div>';
+        };
+        return '<div class="card">' +
+          '<div class="card-head"><h2>'+escapeHtml(p.name)+'</h2>' +
+            '<span class="sub" style="margin:0;">'+p.workDays+'/'+(isCurrentMonth ? daysElapsed+" ngày đã qua" : daysInMonth+" ngày")+' có quét</span></div>' +
+          row("Đơn đã quét", p.orders + " đơn × " + payNumFmt.format(PAY_PER_ORDER) + "đ = " + payMoney(p.orderPay)) +
+          row("Lương sàn " + (high ? "(cao điểm)" : "(thấp điểm)"), payMoney(base)) +
+          row("<b>Lương chính</b>", "<b>"+payMoney(p.mainPay)+"</b>", p.orderPay > base ? "— theo số đơn" : "— theo lương sàn") +
+          row("Công tích đơn hoàn", p.returnsPaid + " kiện × " + payNumFmt.format(PAY_PER_RETURN) + "đ = " + payMoney(p.returnPay),
+              p.returnsBoom ? "("+p.returnsBoom+" kiện huỷ chưa đi — không tính)" : "") +
+          row("Thưởng chuyên cần", isCurrentMonth ? "chốt cuối tháng" : payMoney(p.attendancePay),
+              p.startedMidMonth && p.noGapSinceStart
+                ? "— không nghỉ ngày nào kể từ "+fmtDate(p.firstDay)+", nhưng chưa đủ cả tháng: chủ shop tự quyết"
+                : (isCurrentMonth
+                    ? (p.onTrack ? "— đang đủ công" : "— đã vắng "+(daysElapsed - p.workDays)+" ngày, khó đạt")
+                    : (p.fullAttendance ? "— đủ công cả tháng" : "— nghỉ "+(daysInMonth - p.workDays)+" ngày"))) +
+          row("Thưởng chất lượng", payMoney(p.qualityPay), "— lỗi kho vận " + quality.note) +
+          '<div class="pay-row pay-total"><span class="pay-label">TỔNG' + (isCurrentMonth ? " (tạm tính)" : "") + '</span>' +
+            '<span class="pay-value tabular">'+payMoney(p.total)+'</span></div>' +
+        '</div>';
+      }).join("");
+    }).catch(function(err){
+      console.error("payroll load error", err);
+      $("payroll-people").innerHTML = '<div class="card"><div class="empty-state">Không tải được dữ liệu lương: '+escapeHtml(err.message || err)+'</div></div>';
+    });
+  }
+  $("payroll-month").addEventListener("change", loadPayroll);
+  $("payroll-reload").addEventListener("click", loadPayroll);
+
   function runManualReconcile(){
     var btn = $("dash-reconcile-btn");
     var statusEl = $("dash-recon-status");
