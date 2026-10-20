@@ -150,6 +150,14 @@
   .kpi-dots .dot-warn{ background:var(--warn-ink); }
 
   .notice-board{ background:var(--warn-soft); border:1px solid var(--warn); border-radius:var(--radius); padding:14px 16px; margin-bottom:14px; }
+  .retalert-board{ background:#fff2f2; border:1px solid #e5484d; }
+  .retalert-board h2{ color:#c62a2f; }
+  .retalert-item{ display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; padding:7px 0; border-top:1px dashed #e5a0a3; font-size:13px; }
+  .retalert-item:first-child{ border-top:none; }
+  .retalert-item .code{ font-weight:700; font-family:ui-monospace,Menlo,monospace; }
+  .retalert-item .days{ color:#c62a2f; font-weight:600; }
+  .retalert-item .meta{ color:var(--ink-2); font-size:12px; }
+  .retalert-transit{ margin:6px 0 0; font-size:12px; color:var(--ink-2); }
   .notice-board-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
   .notice-board-head h2{ font-size:14px; margin:0; display:flex; align-items:center; gap:6px; }
   .notice-empty{ font-size:12.5px; color:var(--ink-2); margin:8px 0 0; }
@@ -344,6 +352,15 @@
   </div>
 
   <p id="conn-msg"></p>
+
+  <div class="notice-board retalert-board" id="retalert-board" hidden>
+    <div class="notice-board-head">
+      <h2>🔴 Hoàn về chưa nhận <span class="n" id="retalert-count">0</span></h2>
+    </div>
+    <p style="margin:4px 0 2px; font-size:12.5px; color:#8a4a4a;">Sàn báo các kiện dưới đây ĐÃ TRẢ VỀ kho quá 3 ngày nhưng chưa thấy tích trong Sổ Kho — tìm kiện/hỏi bưu tá; khi quét vào "Tích đơn hoàn" dòng sẽ tự biến mất.</p>
+    <div id="retalert-list"></div>
+    <p class="retalert-transit" id="retalert-transit" hidden></p>
+  </div>
 
   <div class="notice-board" id="notice-board" hidden>
     <div class="notice-board-head">
@@ -692,6 +709,7 @@
   var T_REPORTS = "monthly_reports"; // sở hữu bởi Sổ Vận Hành — chỉ đọc
   var T_ERRLOG = "warehouse_error_log"; // sổ "Thống kê lỗi" — quản lý ghi tay, độc lập với warehouse_return_checks
   var T_NOTICES = "warehouse_notices"; // "Việc cần làm" — banner nhắc việc, hiện ở mọi tab
+  var T_RETFEED = "platform_returns_feed"; // phiếu trả hàng đồng bộ từ Sapo (script sync_returns_feed.py ghi vào)
   var T_UNPACKED = "warehouse_unpacked_log"; // đơn đã in nhưng chưa đóng được trong ngày (thiếu hàng, lỗi hàng…)
 
   var PLATFORMS = { tiktok: "TikTok Shop", shopee: "Shopee" };
@@ -742,9 +760,42 @@
     var c = (code || "").trim().toUpperCase();
     if(!c) return null;
     if(/^SPX/.test(c)) return { platform:"shopee", carrier:"Shopee Express" };
+    if(/^VTP/.test(c)) return { platform:"tiktok", carrier:"ViettelPost" };
     if(/^\d+$/.test(c)) return { platform:"tiktok", carrier:"J&T Express" };
     if(/[A-Z]/.test(c)) return { platform:"shopee", carrier:"GHN" };
     return null;
+  }
+
+  /* Chuẩn hoá mã quét: sửa lỗi bộ gõ tiếng Việt (Telex gộp ký tự, vd GYRDVGCM -> GỶDVGCM),
+     chặn quét nhầm barcode link / mã có ký tự lạ. Trả về { code, err }. */
+  function reverseTelexVN(s){
+    var out = "";
+    for(var i = 0; i < s.length; i++){
+      var ch = s.charAt(i);
+      if(ch === "\u0110" || ch === "\u0111"){ out += "DD"; continue; } /* Đ/đ */
+      var nfd = ch.normalize("NFD");
+      if(nfd.length === 1){ out += ch; continue; }
+      var base = nfd.charAt(0), marks = nfd.slice(1), seq = base;
+      if(marks.indexOf("\u0302") >= 0) seq += base;  /* dấu mũ: Â->AA, Ê->EE, Ô->OO */
+      if(marks.indexOf("\u0306") >= 0) seq += "W";   /* dấu trăng: Ă->AW */
+      if(marks.indexOf("\u031B") >= 0) seq += "W";   /* dấu móc: Ơ->OW, Ư->UW */
+      if(marks.indexOf("\u0301") >= 0) seq += "S";
+      if(marks.indexOf("\u0300") >= 0) seq += "F";
+      if(marks.indexOf("\u0309") >= 0) seq += "R";
+      if(marks.indexOf("\u0303") >= 0) seq += "X";
+      if(marks.indexOf("\u0323") >= 0) seq += "J";
+      out += seq;
+    }
+    return out;
+  }
+  function normalizeScanCode(raw){
+    var s = (raw || "").trim();
+    if(!s) return { code:"", err:null };
+    if(/^HTTPS?:|:\/\/|\//i.test(s)) return { code:s, err:"Đây là barcode/QR chứa link, không phải mã vận đơn — tìm đúng ô mã vận đơn trên tem rồi quét lại." };
+    s = reverseTelexVN(s.toUpperCase()).replace(/\s+/g, "");
+    if(/[^A-Z0-9_-]/.test(s)) return { code:s, err:"Mã quét dính ký tự lạ (" + s + ") — tắt bộ gõ tiếng Việt rồi quét lại." };
+    if(s.length < 6) return { code:s, err:"Mã quét quá ngắn — kiểm tra lại mã vận đơn." };
+    return { code:s, err:null };
   }
 
   /* ---------------- utils ---------------- */
@@ -1057,6 +1108,75 @@
   });
   staffInput.addEventListener("keydown", function(e){ if(e.key === "Enter"){ $("staff-save").click(); } });
 
+  /* ---------------- cảnh báo "Hoàn về chưa nhận" (đối chiếu Sapo ↔ sổ kho) ---------------- */
+  // Bảng platform_returns_feed do job hàng ngày trên PC trực ghi (nguồn: Sapo /admin/order_returns.json).
+  // Khớp mã quét với CẢ mã vận đơn chiều hoàn LẪN chiều đi (outbound_tracking có thể nhiều mã, nối bằng "+").
+  var RETALERT_GRACE_DAYS = 3;
+  function loadReturnAlerts(){
+    if(!state.connected) return;
+    Promise.all([
+      sbGetAll(T_RETFEED + "?select=*&order=returned_on.asc.nullslast,id.asc"),
+      sbGetAll(T_RETURNS + "?select=code&order=id.asc")
+    ]).then(function(res){
+      var feed = res[0] || [], scans = res[1] || [];
+      var scanned = {};
+      scans.forEach(function(r){ var c = normalizeScanCode(r.code).code; if(c) scanned[c] = true; });
+      function isScanned(row){
+        var cands = [];
+        if(row.return_tracking) cands.push(row.return_tracking);
+        if(row.outbound_tracking) cands = cands.concat(String(row.outbound_tracking).split("+"));
+        for(var i = 0; i < cands.length; i++){
+          var c = normalizeScanCode(cands[i]).code;
+          if(c && scanned[c]) return true;
+        }
+        return false;
+      }
+      var todayMs = new Date(todayStr() + "T00:00:00").getTime();
+      var overdue = [], transit = 0;
+      feed.forEach(function(row){
+        if(row.shipment_status !== "returned" && row.shipment_status !== "returning") return;
+        if(isScanned(row)) return;
+        var ref = row.returned_on || row.created_on;
+        var days = ref ? Math.floor((todayMs - new Date(ref + "T00:00:00").getTime()) / 86400000) : 0;
+        if(row.shipment_status === "returned" && days >= RETALERT_GRACE_DAYS) overdue.push({ row:row, days:days });
+        else transit++;
+      });
+      renderReturnAlerts(overdue, transit);
+    }).catch(function(err){
+      // bảng chưa tạo / lỗi mạng -> ẩn khối, không làm phiền
+      $("retalert-board").hidden = true;
+      console.error("load return alerts error", err);
+    });
+  }
+  function renderReturnAlerts(overdue, transit){
+    var board = $("retalert-board");
+    var list = $("retalert-list");
+    var transitEl = $("retalert-transit");
+    $("retalert-count").textContent = overdue.length;
+    if(!overdue.length && !transit){ board.hidden = true; return; }
+    board.hidden = false;
+    overdue.sort(function(a,b){ return b.days - a.days; });
+    list.innerHTML = overdue.map(function(o){
+      var r = o.row;
+      var plat = PLATFORMS[r.platform] || r.platform || "?";
+      var codeShow = r.return_tracking || (String(r.outbound_tracking||"").split("+")[0]) || "?";
+      var ve = r.returned_on ? r.returned_on.slice(8,10) + "/" + r.returned_on.slice(5,7) : "?";
+      return '<div class="retalert-item">' +
+        '<span class="code">' + escapeHtml(codeShow) + '</span>' +
+        '<span class="days">trễ ' + o.days + ' ngày</span>' +
+        '<span class="meta">' + escapeHtml(plat) + ' · đơn ' + escapeHtml(r.order_name || "?") + ' · sàn báo về ' + ve +
+        (r.return_type === "delivery_failed" ? ' · bom/giao thất bại' : ' · khách đổi trả') + '</span>' +
+      '</div>';
+    }).join("");
+    if(!overdue.length) list.innerHTML = "";
+    if(transit){
+      transitEl.hidden = false;
+      transitEl.textContent = "Ngoài ra có " + transit + " kiện hoàn đang trên đường về (chưa quá hạn) — sẽ tự theo dõi tiếp.";
+    } else {
+      transitEl.hidden = true;
+    }
+  }
+
   /* ---------------- notice board (Việc cần làm) ---------------- */
   // Banner cố định, hiện ở mọi tab — quản lý ghi việc cần làm (kèm link đơn hàng và/hoặc file PDF tuỳ chọn),
   // nhân viên mở sổ kho lên là thấy ngay. Lần đầu mở trang trong phiên trình duyệt (mỗi lần mở lại app/tab mới),
@@ -1290,7 +1410,7 @@
     var input = $(codeInputId);
     var badge = $(badgeId);
     input.addEventListener("input", function(){
-      var val = input.value.trim();
+      var val = normalizeScanCode(input.value).code;
       if(!val){
         state[stateKey] = null;
         badge.innerHTML = '<span class="sw" style="width:8px;height:8px;border-radius:50%;background:var(--ink-3);display:inline-block;"></span> Chưa nhận diện được sàn — quét hoặc gõ mã vào ô trên';
@@ -1326,6 +1446,8 @@
       $("notice-board").hidden = false; // hiện khu vực "Việc cần làm" ngay khi kết nối được, kể cả lúc chưa tải xong/tải lỗi
       loadNotices();
       if(!state.noticePollTimer) state.noticePollTimer = setInterval(loadNotices, 20000);
+      loadReturnAlerts();
+      if(!state.retalertPollTimer) state.retalertPollTimer = setInterval(loadReturnAlerts, 60000);
     }).catch(function(err){
       state.connected = false;
       connDot.classList.add("off"); connDot.classList.remove("on");
@@ -1474,7 +1596,9 @@
 
   function submitReturn(){
     var codeInput = $("returns-code");
-    var code = codeInput.value.trim();
+    var norm = normalizeScanCode(codeInput.value);
+    if(norm.err){ showToast("returns-toast","err",norm.err); codeInput.select(); return; }
+    var code = norm.code;
     if(!code) return;
     if(!state.connected){ showToast("returns-toast","err","Chưa kết nối được dữ liệu, thử lại sau."); return; }
     if(!state.staffName){ showToast("returns-toast","err","Nhập tên nhân viên ở góc trên trước đã."); staffInput.focus(); return; }
@@ -1501,6 +1625,7 @@
       } else {
         showToast("returns-toast","ok","Đã tích đơn hoàn "+code+" — "+RTYPE_LABELS[rtype]+".");
         loadReturnsToday();
+        loadReturnAlerts();
       }
       codeInput.value = "";
       returnsProblemToggle.checked = false;
@@ -1590,7 +1715,9 @@
   }
   function submitOutbound(){
     var codeInput = $("outbound-code");
-    var code = codeInput.value.trim();
+    var norm = normalizeScanCode(codeInput.value);
+    if(norm.err){ showToast("outbound-toast","err",norm.err); codeInput.select(); return; }
+    var code = norm.code;
     if(!code) return;
     if(!state.connected){ showToast("outbound-toast","err","Chưa kết nối được dữ liệu, thử lại sau."); return; }
     if(!state.staffName){ showToast("outbound-toast","err","Nhập tên nhân viên ở góc trên trước đã."); staffInput.focus(); return; }
@@ -1672,7 +1799,9 @@
   });
   function submitUnpacked(){
     var codeInput = $("unpacked-code");
-    var code = codeInput.value.trim();
+    var norm = normalizeScanCode(codeInput.value);
+    if(norm.err){ showToast("unpacked-toast","err",norm.err); codeInput.select(); return; }
+    var code = norm.code;
     if(!code) return;
     if(!state.connected){ showToast("unpacked-toast","err","Chưa kết nối được dữ liệu, thử lại sau."); return; }
     if(!state.staffName){ showToast("unpacked-toast","err","Nhập tên nhân viên ở góc trên trước đã."); staffInput.focus(); return; }
