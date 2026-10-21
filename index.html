@@ -763,7 +763,10 @@
       <p class="sub" style="margin:0;"><b>Cách tính</b> (quy chế chốt 20/10/2026) — Lương chính = số đơn đã quét × 500đ, nếu thấp hơn lương sàn theo mùa
         thì lấy lương sàn (cao điểm 1/9–hết 2: 3.000.000đ · thấp điểm 1/3–31/8: 1.500.000đ). Cộng thêm công tích đơn hoàn
         2.000đ/đơn khách trả (kiện huỷ chưa đi không tính). Thưởng chuyên cần 500.000đ nếu đi làm đủ cả tháng; thưởng chất lượng
-        theo tỷ lệ lỗi Kho vận chung của kho (&lt;0,5% được 500.000đ · 0,5–1% được 250.000đ · trên 1% không có).
+        theo <b>tỷ lệ lỗi Kho vận của riêng từng người</b> (sửa 21/10/2026, trước đó dùng tỷ lệ chung cả kho) —
+        lỗi Kho vận truy được về người đó ÷ số đơn chính người đó quét (đơn đi + đơn hoàn):
+        &lt;0,5% được 500.000đ · 0,5–1% được 250.000đ · trên 1% không có. Lỗi nào không tra được người đóng (mã ghi sai
+        trong mục 5) thì không trừ thưởng của ai.
         Thưởng gắn bó 1.000.000đ mỗi 6 tháng làm liên tục — khoản này chủ shop tự cộng khi tới kỳ, sổ không tự tính.</p>
     </div>
   </section>
@@ -2388,14 +2391,32 @@
     Promise.all([
       sbGetAll(T_OUTBOUND+"?scan_date=gte."+range.start+"&scan_date=lte."+range.end+"&select=staff,scan_date&order=id.asc"),
       sbGetAll(T_RETURNS+"?scan_date=gte."+range.start+"&scan_date=lte."+range.end+"&select=staff,scan_date,return_type&order=id.asc"),
-      sbGetAll(T_ERRLOG+"?created_at=gte."+range.start+"T00:00:00&created_at=lte."+range.end+"T23:59:59&select=error_type&order=id.asc")
+      sbGetAll(T_ERRLOG+"?created_at=gte."+range.start+"T00:00:00&created_at=lte."+range.end+"T23:59:59&select=code,error_type&order=id.asc")
     ]).then(function(res){
       var outRows = res[0] || [], retRows = res[1] || [], errRows = res[2] || [];
-      var errKhoVan = errRows.filter(function(e){ return e.error_type === "kho_van"; }).length;
+      var khoVanRows = errRows.filter(function(e){ return e.error_type === "kho_van"; });
+      // Thưởng chất lượng tính theo lỗi CỦA CHÍNH NGƯỜI ĐÓ (chủ shop đổi
+      // 21/10/2026) — quy chế 20/10 dùng tỷ lệ chung cả kho vì hồi đó sổ lỗi
+      // chưa truy được ai gây lỗi; nay mục 5 tra ngược mã vận đơn ra người đóng
+      // nên tính riêng được, người làm sạch không còn bị kéo theo lỗi người khác.
+      // Lỗi không tra được người thì không tính cho ai (nêu rõ ở thẻ KPI).
+      return fetchPackerByCodes(khoVanRows.map(function(e){ return e.code; })).then(function(packerMap){
+        return { outRows: outRows, retRows: retRows, khoVanRows: khoVanRows, packerMap: packerMap };
+      });
+    }).then(function(d){
+      var outRows = d.outRows, retRows = d.retRows;
+      var errKhoVan = d.khoVanRows.length;
       // tỷ lệ lỗi chung toàn kho = lỗi kho vận / (đơn hoàn + đơn gửi đi)
       var denom = retRows.length + outRows.length;
       var errRate = denom ? errKhoVan / denom : null;
-      var quality = payQualityBonus(errRate);
+      // lỗi theo từng người (gộp tên theo chữ thường: dữ liệu cũ có cả "minh" lẫn "Minh")
+      var errByStaff = {}, errUntraced = 0;
+      d.khoVanRows.forEach(function(e){
+        var who = d.packerMap[String(e.code || "").trim().toLowerCase()];
+        if(!who){ errUntraced++; return; }
+        var k = who.toLowerCase();
+        errByStaff[k] = (errByStaff[k] || 0) + 1;
+      });
 
       var people = {};
       function person(key){
@@ -2442,7 +2463,13 @@
           p.startedMidMonth = firstDayNum > 1;
         }
         p.attendancePay = (p.isReal && !isCurrentMonth && p.fullAttendance) ? PAY_BONUS_ATTENDANCE : 0;
-        p.qualityPay = p.isReal ? quality.amount : 0;
+        // Tỷ lệ lỗi riêng: lỗi kho vận truy được về người này ÷ số đơn chính
+        // người này quét (đơn đi + đơn hoàn) — cùng công thức với tỷ lệ chung.
+        p.errCount = errByStaff[p.name.toLowerCase()] || 0;
+        p.errDenom = p.orders + p.returnsPaid + p.returnsBoom;
+        p.errRate = p.errDenom ? p.errCount / p.errDenom : null;
+        p.quality = payQualityBonus(p.errRate);
+        p.qualityPay = p.isReal ? p.quality.amount : 0;
         p.total = p.isReal ? (p.mainPay + p.returnPay + p.attendancePay + p.qualityPay) : 0;
         if(p.isReal) tong += p.total;
       });
@@ -2455,7 +2482,8 @@
           '<span class="foot">'+list.filter(function(p){ return p.isReal; }).length+' người · dùng cho P&amp;L</span></div>' +
         '<div class="kpi"><span class="lbl">Tỷ lệ lỗi Kho vận (chung cả kho)</span>' +
           '<span class="val tabular '+rateCls+'">'+(errRate === null ? "—" : (errRate*100).toFixed(2).replace(".", ",")+"%")+'</span>' +
-          '<span class="foot">'+errKhoVan+' lỗi / '+denom+' đơn · thưởng chất lượng: '+payMoney(quality.amount)+'</span></div>' +
+          '<span class="foot">'+errKhoVan+' lỗi / '+denom+' đơn · chỉ để tham khảo, thưởng tính theo tỷ lệ riêng từng người' +
+          (errUntraced ? ' · <b>'+errUntraced+' lỗi chưa tra được người</b>, không trừ thưởng của ai' : '') + '</span></div>' +
         '<div class="kpi"><span class="lbl">Ngày trong tháng</span>' +
           '<span class="val tabular">'+daysElapsed+'/'+daysInMonth+'</span>' +
           '<span class="foot">'+(isCurrentMonth ? "tháng đang chạy — thưởng chốt khi hết tháng" : "tháng đã đủ")+'</span></div>';
@@ -2492,7 +2520,10 @@
                 : (isCurrentMonth
                     ? (p.onTrack ? "— đang đủ công" : "— đã vắng "+(daysElapsed - p.workDays)+" ngày, khó đạt")
                     : (p.fullAttendance ? "— đủ công cả tháng" : "— nghỉ "+(daysInMonth - p.workDays)+" ngày"))) +
-          row("Thưởng chất lượng", payMoney(p.qualityPay), "— lỗi kho vận " + quality.note) +
+          row("Thưởng chất lượng", payMoney(p.qualityPay),
+              "— lỗi kho vận của " + escapeHtml(p.name) + ": " +
+              (p.errRate === null ? "chưa có đơn nào" :
+                "<b>"+(p.errRate*100).toFixed(2).replace(".", ",")+"%</b> ("+p.errCount+" lỗi / "+p.errDenom+" đơn đã quét) — "+p.quality.note)) +
           '<div class="pay-row pay-total"><span class="pay-label">TỔNG' + (isCurrentMonth ? " (tạm tính)" : "") + '</span>' +
             '<span class="pay-value tabular">'+payMoney(p.total)+'</span></div>' +
         '</div>';
