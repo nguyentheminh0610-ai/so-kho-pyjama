@@ -771,7 +771,9 @@
     </div>
   </section>
 
-  <p class="foot-note">Dữ liệu được lưu chung cho cả nhóm kho trên Supabase, cập nhật gần như theo thời gian thực.</p>
+  <!-- Mốc bản để biết trình duyệt có đang giữ bản cũ không: thấy ngày cũ hơn ngày
+       vừa sửa thì tải lại cứng (Ctrl/Cmd + Shift + R). Nhớ đổi khi deploy. -->
+  <p class="foot-note">Dữ liệu được lưu chung cho cả nhóm kho trên Supabase, cập nhật gần như theo thời gian thực. · <span id="build-stamp">bản 22/10/2026</span></p>
 </div>
 
 <script>
@@ -2279,15 +2281,16 @@
     // thẳng được với ngưỡng thưởng chất lượng 0,5% / 1% trong quy chế 20/10/2026.
     // Gộp theo tên viết thường vì dữ liệu cũ có cả "minh" lẫn "Minh".
     var scanned = {};
-    function countScan(rows){
+    function countScan(rows, field){
       (rows || []).forEach(function(r){
         var v = String(r.staff || "").trim();
         if(!v || looksLikeTrackingCode(v)) return;
         var k = v.toLowerCase();
-        scanned[k] = (scanned[k] || 0) + 1;
+        if(!scanned[k]) scanned[k] = { out: 0, ret: 0 };
+        scanned[k][field]++;
       });
     }
-    countScan(outRows); countScan(retRows);
+    countScan(outRows, "out"); countScan(retRows, "ret");
     fetchPackerByCodes(khoVanRows.map(function(e){ return e.code; })).then(function(map){
       if(kpiGrid.innerHTML.indexOf(baseHtml) !== 0) return;   // dashboard đã vẽ lại trong lúc chờ
       var byStaff = {}, order = [], unknown = 0;
@@ -2309,13 +2312,14 @@
       order.sort(function(a, b){ return byStaff[b].total - byStaff[a].total; });
       var html = order.map(function(k){
         var s = byStaff[k];
-        var den = scanned[k] || 0;
+        var sc = scanned[k] || { out: 0, ret: 0 };
+        var den = sc.out + sc.ret;
         var rate = den ? s.total / den : null;
         var cls = rate === null ? "" : (rate < 0.005 ? "good" : (rate <= 0.01 ? "warn" : "crit"));
         var rateLine = rate === null
           ? '<span class="rate">chưa quét đơn nào tháng này</span>'
           : '<span class="rate '+cls+'">'+(rate*100).toFixed(2).replace(".", ",")+'%</span>' +
-            '<span class="rate-den">trên '+den+' đơn đã quét</span>';
+            '<span class="rate-den">trên '+den+' đơn ('+sc.out+' đi + '+sc.ret+' hoàn)</span>';
         var foot = "Giao thiếu <b>"+s.thieu+"</b> · Giao nhầm <b>"+s.nham+"</b>" + (s.khac ? " · Khác <b>"+s.khac+"</b>" : "");
         return '<div class="kpi"><span class="lbl">Lỗi kho vận · '+escapeHtml(s.name)+'</span>' +
           '<span class="val tabular'+(s.total ? " crit" : "")+'">'+s.total+'</span>' +
@@ -2509,7 +2513,8 @@
         return '<div class="card">' +
           '<div class="card-head"><h2>'+escapeHtml(p.name)+'</h2>' +
             '<span class="sub" style="margin:0;">'+p.workDays+'/'+(isCurrentMonth ? daysElapsed+" ngày đã qua" : daysInMonth+" ngày")+' có quét</span></div>' +
-          row("Đơn đã quét", p.orders + " đơn × " + payNumFmt.format(PAY_PER_ORDER) + "đ = " + payMoney(p.orderPay)) +
+          row("Đơn <b>đi</b> đã quét", p.orders + " đơn × " + payNumFmt.format(PAY_PER_ORDER) + "đ = " + payMoney(p.orderPay),
+              "— chỉ đơn gửi đi, đơn hoàn tính riêng ở dòng dưới") +
           row("Lương sàn " + (high ? "(cao điểm)" : "(thấp điểm)"), payMoney(base)) +
           row("<b>Lương chính</b>", "<b>"+payMoney(p.mainPay)+"</b>", p.orderPay > base ? "— theo số đơn" : "— theo lương sàn") +
           row("Công tích đơn hoàn", p.returnsPaid + " kiện × " + payNumFmt.format(PAY_PER_RETURN) + "đ = " + payMoney(p.returnPay),
@@ -2523,7 +2528,8 @@
           row("Thưởng chất lượng", payMoney(p.qualityPay),
               "— lỗi kho vận của " + escapeHtml(p.name) + ": " +
               (p.errRate === null ? "chưa có đơn nào" :
-                "<b>"+(p.errRate*100).toFixed(2).replace(".", ",")+"%</b> ("+p.errCount+" lỗi / "+p.errDenom+" đơn đã quét) — "+p.quality.note)) +
+                "<b>"+(p.errRate*100).toFixed(2).replace(".", ",")+"%</b> ("+p.errCount+" lỗi / "+p.errDenom+" đơn = "+
+                p.orders+" đi + "+(p.returnsPaid+p.returnsBoom)+" hoàn) — "+p.quality.note)) +
           '<div class="pay-row pay-total"><span class="pay-label">TỔNG' + (isCurrentMonth ? " (tạm tính)" : "") + '</span>' +
             '<span class="pay-value tabular">'+payMoney(p.total)+'</span></div>' +
         '</div>';
