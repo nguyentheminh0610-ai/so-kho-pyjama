@@ -103,6 +103,12 @@
   .staff-chip.on{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
   .staff-chip.add{ background:transparent; color:var(--ink-3); font-weight:700; padding:6px 10px; }
   .staff-chip.add:hover{ color:var(--accent); }
+  .staff-chip.edit{ background:transparent; color:var(--ink-3); font-weight:700; padding:6px 9px; font-size:12px; }
+  .staff-chip.edit:hover{ color:var(--accent); }
+  .staff-chip.edit.on{ background:var(--crit-soft); border-color:var(--crit); color:var(--crit-ink); }
+  .staff-chip .x{ display:inline-block; margin-left:7px; padding:0 3px; border-radius:50%;
+    background:var(--crit-soft); color:var(--crit-ink); font-weight:700; line-height:1.3; }
+  .staff-chip .x:hover{ background:var(--crit); color:#fff; }
   .staffbox.none-selected{ border-color:var(--crit); background:var(--crit-soft); }
   .staffbox.none-selected span.label{ color:var(--crit-ink); font-weight:700; }
   @keyframes staffPing{ 0%,100%{ transform:scale(1); } 35%{ transform:scale(1.045); } }
@@ -340,6 +346,12 @@
   .dcell.p-tiktok{ border-left-color:var(--tiktok); } .dcell.p-shopee{ border-left-color:var(--shopee); }
   .dcell .c{ font-family:"IBM Plex Mono"; font-weight:600; font-size:11.5px; display:block; overflow:hidden; text-overflow:ellipsis; }
   .dcell .m{ color:var(--ink-3); font-size:10px; margin-top:1px; display:block; }
+  /* Tên người tích — chủ shop yêu cầu nhìn thấy ngay trên dòng đơn, nhưng để nhỏ
+     để không lấn mã vận đơn (thứ nhân viên phải đọc nhanh khi đối chiếu). */
+  .who{ font-family:"Inter",system-ui,sans-serif; font-size:10.5px; font-weight:600; color:var(--ink-3);
+    background:var(--surface-3); border-radius:999px; padding:1px 7px; margin-left:7px;
+    white-space:nowrap; vertical-align:middle; }
+  .dcell .who{ margin-left:5px; font-size:9.5px; padding:0 5px; }
 
   .review-input{ min-width:64px; max-width:80px; padding:5px 7px; font-size:12px; }
   .review-input.wide{ min-width:120px; max-width:160px; }
@@ -696,7 +708,9 @@
         <b>Lỗi shop - Sản phẩm</b> (lỗi từ nhà cung cấp) — ngay khi phát hiện qua chat khách hàng hoặc kiểm tra
         yêu cầu trả hàng, không cần chờ hàng về kho, để sau này truy trách nhiệm/khiếu nại nhà cung cấp. Dùng
         chung <b>mã vận đơn</b> với lúc kho tích đơn — nhân viên kho tích đúng mã này ở mục 1 sẽ tự thấy cảnh
-        báo kèm lý do để biết cách xử lý, còn đơn vẫn tích bình thường như mọi đơn khác.</p>
+        báo kèm lý do để biết cách xử lý, còn đơn vẫn tích bình thường như mọi đơn khác.
+        Cột <b>Người đóng đơn</b> không phải người ghi lỗi — sổ tự tra mã vận đơn này sang mục 1/mục 2 để
+        tìm ai đã quét chính đơn đó; hiện <b>—</b> nghĩa là mã không có trong sổ đã quét (đơn cũ hoặc gõ sai mã).</p>
       <div class="filter-row" style="margin-top:0;">
         <input type="text" id="errlog-code" placeholder="Mã vận đơn…" autocomplete="off" style="max-width:200px;" />
         <select id="errlog-type">
@@ -711,8 +725,8 @@
       <div class="toast" id="errlog-toast"></div>
       <div class="twrap" style="margin-top:10px;">
         <table>
-          <thead><tr><th>Mã vận đơn</th><th>Loại lỗi</th><th>Lý do</th><th>Ngày ghi</th><th></th></tr></thead>
-          <tbody id="errlog-body"><tr class="empty-row"><td colspan="5">Đang tải…</td></tr></tbody>
+          <thead><tr><th>Mã vận đơn</th><th>Loại lỗi</th><th>Lý do</th><th>Người đóng đơn</th><th>Ngày ghi</th><th></th></tr></thead>
+          <tbody id="errlog-body"><tr class="empty-row"><td colspan="6">Đang tải…</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -866,6 +880,14 @@
     return String(s==null?"":s).replace(/[&<>"']/g, function(c){
       return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c];
     });
+  }
+  /* Nhãn nhỏ "ai tích đơn này" gắn ngay cạnh mã đơn (chủ shop yêu cầu 21/10/2026).
+     Đơn quét trước khi có cơ chế chọn tên, hoặc dòng bị máy quét bắn mã vận đơn
+     vào cột staff, thì không hiện gì — hiện ra chỉ gây hiểu nhầm là tên người. */
+  function whoChip(staff){
+    var v = String(staff || "").trim();
+    if(!v || looksLikeTrackingCode(v)) return "";
+    return '<span class="who" title="Người tích đơn này">'+escapeHtml(v)+'</span>';
   }
   function monthRange(monthStr){
     var y = +monthStr.slice(0,4), m = +monthStr.slice(5,7);
@@ -1104,10 +1126,15 @@
      Lương nhân viên đóng đơn tính theo số đơn CHÍNH NGƯỜI ĐÓ quét (chốt với chủ
      shop 20/10/2026) nên cột staff phải sạch tuyệt đối. */
   var STAFF_ROSTER_KEY = "kho_staff_roster";      // danh sách tên trên máy này
+  var STAFF_REMOVED_KEY = "kho_staff_removed";    // tên đã xoá tay (để tên mặc định không mọc lại)
   var STAFF_DEFAULT_ROSTER = ["Giáp", "Minh"];    // tên đang dùng thật trong dữ liệu
   var staffChipsEl = $("staff-chips");
   var staffBoxEl = $("staffbox");
 
+  function loadStaffRemoved(){
+    try { var raw = JSON.parse(localStorage.getItem(STAFF_REMOVED_KEY) || "[]"); return Array.isArray(raw) ? raw : []; }
+    catch(e){ return []; }
+  }
   function loadStaffRoster(){
     var arr = [];
     try { var raw = JSON.parse(localStorage.getItem(STAFF_ROSTER_KEY) || "[]"); if(Array.isArray(raw)) arr = raw; }
@@ -1115,9 +1142,31 @@
     STAFF_DEFAULT_ROSTER.forEach(function(n){
       if(!arr.some(function(x){ return x.toLowerCase() === n.toLowerCase(); })) arr.push(n);
     });
-    return arr.filter(function(n){ return n && typeof n === "string"; });
+    // Tên mặc định cũng xoá được: nếu không nhớ riêng danh sách đã xoá thì vòng
+    // lặp trên sẽ thêm lại ngay sau khi xoá.
+    var removed = loadStaffRemoved();
+    return arr.filter(function(n){
+      if(!n || typeof n !== "string") return false;
+      return !removed.some(function(r){ return String(r).toLowerCase() === n.toLowerCase(); });
+    });
   }
   function saveStaffRoster(arr){ localStorage.setItem(STAFF_ROSTER_KEY, JSON.stringify(arr)); }
+  // Xoá tên khỏi danh sách CHỌN thôi — các đơn người đó đã quét vẫn giữ nguyên
+  // trong dữ liệu (mục 4, mục 6 Lương vẫn thống kê đủ).
+  function removeStaffMember(name){
+    var roster = loadStaffRoster().filter(function(n){ return n.toLowerCase() !== name.toLowerCase(); });
+    saveStaffRoster(roster);
+    var removed = loadStaffRemoved();
+    if(!removed.some(function(r){ return String(r).toLowerCase() === name.toLowerCase(); })) removed.push(name);
+    localStorage.setItem(STAFF_REMOVED_KEY, JSON.stringify(removed));
+    if((state.staffName || "").toLowerCase() === name.toLowerCase()){
+      setStaffName("");          // đang trực mà bị xoá -> bắt chọn lại
+      openStaffGate();
+    } else {
+      renderStaffChips();
+      if(!staffGateEl.hidden) openStaffGate();
+    }
+  }
 
   // Chặn đúng thứ đã làm hỏng dữ liệu cũ: mã vận đơn/chuỗi mã bị nhập làm tên.
   function looksLikeTrackingCode(s){
@@ -1141,13 +1190,17 @@
     renderStaffChips();
     if(name) closeStaffGate();
   }
+  var staffEditMode = false;   // bật bằng nút ✎ — hiện dấu × để xoá tên thêm nhầm
   function renderStaffChips(){
     var roster = loadStaffRoster();
     var cur = state.staffName || "";
     staffChipsEl.innerHTML = roster.map(function(n){
       var on = n.toLowerCase() === cur.toLowerCase();
-      return '<button type="button" class="staff-chip'+(on ? " on" : "")+'" data-staff="'+escapeHtml(n)+'">'+escapeHtml(n)+'</button>';
-    }).join("") + '<button type="button" class="staff-chip add" id="staff-add" title="Thêm người mới vào danh sách máy này">+</button>';
+      var x = staffEditMode ? '<span class="x" data-del="'+escapeHtml(n)+'" title="Xoá tên này khỏi danh sách">✕</span>' : "";
+      return '<button type="button" class="staff-chip'+(on ? " on" : "")+'" data-staff="'+escapeHtml(n)+'">'+escapeHtml(n)+x+'</button>';
+    }).join("")
+      + '<button type="button" class="staff-chip add" id="staff-add" title="Thêm người mới vào danh sách máy này">+</button>'
+      + '<button type="button" class="staff-chip edit'+(staffEditMode ? " on" : "")+'" id="staff-edit" title="Sửa danh sách tên (xoá tên thêm nhầm)">'+(staffEditMode ? "Xong" : "✎")+'</button>';
     staffBoxEl.classList.toggle("none-selected", !cur);
   }
   function addStaffMember(){
@@ -1160,6 +1213,9 @@
       return;
     }
     if(name.length > 40){ alert("Tên dài quá (tối đa 40 ký tự)."); return; }
+    // thêm lại tên từng xoá -> bỏ khỏi danh sách đã xoá, không thì nó bị lọc mất ngay
+    var removed = loadStaffRemoved().filter(function(r){ return String(r).toLowerCase() !== name.toLowerCase(); });
+    localStorage.setItem(STAFF_REMOVED_KEY, JSON.stringify(removed));
     var roster = loadStaffRoster();
     var existed = roster.filter(function(n){ return n.toLowerCase() === name.toLowerCase(); })[0];
     if(existed){ setStaffName(existed); return; }  // đã có, chỉ chọn lại — tránh 2 kiểu viết
@@ -1177,6 +1233,16 @@
   }
 
   staffChipsEl.addEventListener("click", function(e){
+    var del = e.target.closest("[data-del]");
+    if(del){
+      e.stopPropagation();
+      var dname = del.getAttribute("data-del");
+      if(confirm('Xoá "'+dname+'" khỏi danh sách người trực trên máy này?\n\nCác đơn bạn này đã quét vẫn giữ nguyên trong dữ liệu (mục 4 và mục 6 Lương vẫn thống kê đủ) — chỉ là không hiện nút chọn tên nữa.')){
+        removeStaffMember(dname);
+      }
+      return;
+    }
+    if(e.target.closest("#staff-edit")){ staffEditMode = !staffEditMode; renderStaffChips(); return; }
     if(e.target.closest("#staff-add")){ addStaffMember(); return; }
     var chip = e.target.closest("[data-staff]");
     if(chip) setStaffName(chip.getAttribute("data-staff"));
@@ -1798,7 +1864,7 @@
         var head = '<tr class="day-group-row"><td colspan="3">'+dayLabel(g.date)+'<span class="day-count">· '+g.items.length+' đơn</span></td></tr>';
         var itemsHtml = g.items.map(function(e){
           return '<tr data-code="'+escapeHtml(e.code)+'">' +
-            '<td class="mono"><span class="sw" style="width:8px;height:8px;border-radius:50%;background:var(--'+e.platform+');display:inline-block;margin-right:6px;"></span>'+escapeHtml(e.code)+'</td>' +
+            '<td class="mono"><span class="sw" style="width:8px;height:8px;border-radius:50%;background:var(--'+e.platform+');display:inline-block;margin-right:6px;"></span>'+escapeHtml(e.code)+whoChip(e.staff)+'</td>' +
             '<td class="tabular">'+fmtTime(e.scanned_at)+'</td>' +
             '<td class="row-actions"><button type="button" class="del" data-code="'+escapeHtml(e.code)+'">Xoá</button></td>' +
           '</tr>';
@@ -2106,7 +2172,7 @@
       sbGetAll(T_MATCH+"?status=eq.pending&select=platform,match_key,loai,updated_at&order=updated_at.asc,id.asc"),
       surplusQuery,
       sbGetAll(T_RETURNS+"?has_problem=eq.true&scan_date=gte."+monthStart+"&scan_date=lte."+end+"&select=complaint_status,complaint_result&order=id.asc"),
-      sbGetAll(T_ERRLOG+"?created_at=gte."+monthStart+"T00:00:00&created_at=lte."+end+"T23:59:59&select=error_type&order=id.asc")
+      sbGetAll(T_ERRLOG+"?created_at=gte."+monthStart+"T00:00:00&created_at=lte."+end+"T23:59:59&select=code,error_type,detail_reason&order=id.asc")
     ]).then(function(results){
       var returnsRows = results[0];
       var outboundRows = results[1];
@@ -2178,10 +2244,51 @@
           '<span class="foot">'+errKhoVan+' lỗi / '+khoVanDenom+' đơn · '+rateNote+'</span></div>';
       kpiGrid.innerHTML = tilesHtml;
 
+      renderStaffErrorCards(errLogMonthRows, tilesHtml);
       renderDashOutstanding(outstandingRows);
       renderDashSurplus(surplusRows);
       updateListsBadge();
     }).catch(function(err){ console.error("dashboard load error", err); });
+  }
+
+  /* Chỉ số lỗi theo TỪNG NHÂN VIÊN (chủ shop yêu cầu 21/10/2026).
+     Sổ lỗi không ghi ai gây lỗi, nên quy trách nhiệm bằng cách tra mã vận đơn
+     sang người đã quét đơn đó (mục 2 đơn đi / mục 1 đơn hoàn) — tra xong mới vẽ
+     thêm thẻ vào lưới KPI, không chặn phần còn lại của Tổng quan.
+     Chỉ đếm lỗi KHO VẬN: lỗi sản phẩm là của nhà cung cấp, lỗi khách quan là của
+     khách — không phải việc của người đóng đơn. */
+  function renderStaffErrorCards(errRows, baseHtml){
+    var kpiGrid = $("kpi-grid");
+    var khoVanRows = (errRows || []).filter(function(e){ return e.error_type === "kho_van"; });
+    if(!khoVanRows.length) return;
+    fetchPackerByCodes(khoVanRows.map(function(e){ return e.code; })).then(function(map){
+      if(kpiGrid.innerHTML.indexOf(baseHtml) !== 0) return;   // dashboard đã vẽ lại trong lúc chờ
+      var byStaff = {}, order = [], unknown = 0;
+      khoVanRows.forEach(function(e){
+        var who = map[String(e.code || "").trim().toLowerCase()];
+        if(!who){ unknown++; return; }
+        if(!byStaff[who]){ byStaff[who] = { name: who, total: 0, thieu: 0, nham: 0, khac: 0 }; order.push(who); }
+        var s = byStaff[who];
+        s.total++;
+        if(e.detail_reason === "giao_thieu") s.thieu++;
+        else if(e.detail_reason === "giao_nham") s.nham++;
+        else s.khac++;
+      });
+      order.sort(function(a, b){ return byStaff[b].total - byStaff[a].total; });
+      var html = order.map(function(n){
+        var s = byStaff[n];
+        var foot = "Giao thiếu <b>"+s.thieu+"</b> · Giao nhầm <b>"+s.nham+"</b>" + (s.khac ? " · Khác <b>"+s.khac+"</b>" : "");
+        return '<div class="kpi"><span class="lbl">Lỗi kho vận · '+escapeHtml(s.name)+'</span>' +
+          '<span class="val tabular'+(s.total ? " crit" : "")+'">'+s.total+'</span>' +
+          '<span class="foot">'+foot+'</span></div>';
+      }).join("");
+      if(unknown){
+        html += '<div class="kpi"><span class="lbl">Lỗi chưa tra được người</span>' +
+          '<span class="val tabular">'+unknown+'</span>' +
+          '<span class="foot">mã đơn không có trong sổ đã quét — đơn cũ hoặc gõ sai mã</span></div>';
+      }
+      kpiGrid.innerHTML = baseHtml + html;
+    });
   }
   /* ================= 6. LƯƠNG (20/10/2026) =================
      Tính thẳng từ dữ liệu quét của Sổ Kho, theo quy chế chủ shop chốt 20/10/2026:
@@ -2384,27 +2491,115 @@
   }
   $("dash-reconcile-btn").addEventListener("click", runManualReconcile);
 
-  /* ================= Thống kê lỗi (sổ ghi tay, độc lập với warehouse_return_checks) ================= */
+  /* ================= Thống kê lỗi (sổ ghi tay, độc lập với warehouse_return_checks) =================
+     Cột `staff` của bảng này là người NHẬP lỗi (thường là quản lý), KHÔNG phải người
+     gây lỗi. Chủ shop cần biết lỗi của ai, nên tra ngược theo MÃ VẬN ĐƠN sang chính
+     dòng quét ở mục 2 (đơn đi) / mục 1 (đơn hoàn) để lấy người đã đóng đơn đó. */
+  var ERRSTAFF_CHUNK = 60;   // số mã mỗi lần gọi — URL `code=in.(...)` dài quá sẽ bị từ chối
+  function fetchPackerByCodes(codes){
+    var uniq = [], seen = {};
+    codes.forEach(function(c){
+      var v = String(c == null ? "" : c).trim();
+      var k = v.toLowerCase();
+      if(v && !seen[k]){ seen[k] = 1; uniq.push(v); }
+    });
+    if(!uniq.length) return Promise.resolve({});
+    var jobs = [];
+    for(var i = 0; i < uniq.length; i += ERRSTAFF_CHUNK){
+      var filter = "?code=in.(" + uniq.slice(i, i + ERRSTAFF_CHUNK).map(encodeURIComponent).join(",") + ")&select=code,staff";
+      jobs.push(sbGet(T_OUTBOUND + filter));
+      jobs.push(sbGet(T_RETURNS + filter));
+    }
+    return Promise.all(jobs).then(function(all){
+      var map = {};
+      all.forEach(function(rows){
+        (rows || []).forEach(function(r){
+          var k = String(r.code || "").trim().toLowerCase();
+          var s = String(r.staff || "").trim();
+          if(!k || !s || looksLikeTrackingCode(s)) return;   // dòng staff hỏng -> coi như không tra được
+          if(!map[k]) map[k] = s;
+        });
+      });
+      // Sổ lỗi hay được ghi bằng MÃ ĐƠN HÀNG của sàn (TikTok 586…, Shopee), còn kho
+      // quét MÃ VẬN ĐƠN (862…, SPXVN…) nên không khớp thẳng được. Bảng đồng bộ phiếu
+      // trả hàng từ Sapo có sẵn cặp mã đơn ↔ mã vận đơn, dùng bắc cầu cho những đơn
+      // đã từng hoàn về. Đơn giao thiếu mà khách không trả thì không có cầu nào —
+      // vẫn để "—" chứ không đoán.
+      var missing = uniq.filter(function(c){ return !map[c.toLowerCase()]; });
+      if(!missing.length) return map;
+      var bridgeJobs = [];
+      for(var j = 0; j < missing.length; j += ERRSTAFF_CHUNK){
+        var list = missing.slice(j, j + ERRSTAFF_CHUNK).map(encodeURIComponent).join(",");
+        bridgeJobs.push(sbGet(T_RETFEED + "?order_name=in.(" + list + ")&select=order_name,outbound_tracking,return_tracking"));
+      }
+      return Promise.all(bridgeJobs).then(function(feeds){
+        var viaTracking = {};   // mã vận đơn (thường) -> mã đơn hàng gốc trong sổ lỗi
+        feeds.forEach(function(rows){
+          (rows || []).forEach(function(r){
+            var orderKey = String(r.order_name || "").trim().toLowerCase();
+            if(!orderKey) return;
+            // outbound_tracking có thể gộp nhiều mã, nối bằng "+"
+            String(r.outbound_tracking || "").split("+").concat([r.return_tracking])
+              .forEach(function(t){
+                var tk = String(t || "").trim().toLowerCase();
+                if(tk && !viaTracking[tk]) viaTracking[tk] = orderKey;
+              });
+          });
+        });
+        var trackings = Object.keys(viaTracking);
+        if(!trackings.length) return map;
+        var lookupJobs = [];
+        for(var k2 = 0; k2 < trackings.length; k2 += ERRSTAFF_CHUNK){
+          var f2 = "?code=in.(" + trackings.slice(k2, k2 + ERRSTAFF_CHUNK).map(encodeURIComponent).join(",") + ")&select=code,staff";
+          lookupJobs.push(sbGet(T_OUTBOUND + f2));
+          lookupJobs.push(sbGet(T_RETURNS + f2));
+        }
+        return Promise.all(lookupJobs).then(function(all2){
+          all2.forEach(function(rows){
+            (rows || []).forEach(function(r){
+              var tk = String(r.code || "").trim().toLowerCase();
+              var s = String(r.staff || "").trim();
+              var orderKey = viaTracking[tk];
+              if(!orderKey || !s || looksLikeTrackingCode(s)) return;
+              if(!map[orderKey]) map[orderKey] = s;
+            });
+          });
+          return map;
+        });
+      });
+    }).catch(function(err){ console.error("packer lookup error", err); return {}; });
+  }
+
   var errLogCache = [];
+  var errPackerMap = {};   // mã vận đơn (thường) -> tên người đã quét đơn đó
   function loadErrorLog(){
     var body = $("errlog-body");
     sbGet(T_ERRLOG+"?order=created_at.desc&limit=300").then(function(rows){
       errLogCache = rows;
       renderErrorLog(rows);
+      return fetchPackerByCodes(rows.map(function(e){ return e.code; })).then(function(map){
+        errPackerMap = map;
+        renderErrorLog(errLogCache);   // vẽ lại khi đã tra xong người đóng
+      });
     }).catch(function(err){
-      body.innerHTML = '<tr class="empty-row"><td colspan="5">Không tải được dữ liệu.</td></tr>';
+      body.innerHTML = '<tr class="empty-row"><td colspan="6">Không tải được dữ liệu.</td></tr>';
       console.error(err);
     });
   }
   function renderErrorLog(rows){
     var body = $("errlog-body");
     $("errlog-count").textContent = rows.length ? rows.length + " ca đã ghi" : "";
-    if(!rows.length){ body.innerHTML = '<tr class="empty-row"><td colspan="5">Chưa ghi ca lỗi nào.</td></tr>'; return; }
+    if(!rows.length){ body.innerHTML = '<tr class="empty-row"><td colspan="6">Chưa ghi ca lỗi nào.</td></tr>'; return; }
     body.innerHTML = rows.map(function(e){
+      var packer = errPackerMap[String(e.code || "").trim().toLowerCase()];
+      var packerCell = packer
+        ? '<span class="who" style="margin-left:0;">'+escapeHtml(packer)+'</span>'
+        : '<span style="color:var(--ink-3);" title="Không tìm thấy mã này trong đơn đã quét (đơn cũ hoặc gõ sai mã)">—</span>';
       return '<tr>' +
         '<td class="mono">'+escapeHtml(e.code)+'</td>' +
         '<td><span class="badge pending" style="background:var(--crit-soft);color:var(--crit-ink);">'+escapeHtml(SHOP_ERROR_LABELS[e.error_type]||e.error_type)+'</span></td>' +
         '<td>'+(e.detail_reason ? '<b>'+escapeHtml(DETAIL_REASON_LABELS[e.detail_reason]||e.detail_reason)+'</b> — ' : '')+escapeHtml(e.reason||"")+'</td>' +
+        '<td>'+packerCell+'</td>' +
         '<td class="tabular">'+fmtDate(e.created_at ? e.created_at.slice(0,10) : "")+'</td>' +
         '<td><button type="button" class="review-save errlog-del" data-id="'+e.id+'">Xoá</button></td>' +
       '</tr>';
@@ -2439,6 +2634,13 @@
       btn.disabled = false; btn.textContent = "Ghi lại";
       codeInput.value = ""; reasonInput.value = ""; populateDetailReasonOptions();
       showToast("errlog-toast","ok","Đã ghi nhận "+SHOP_ERROR_LABELS[errorType]+" cho mã "+code+".");
+      // Không tra được người đóng thường là do ghi nhầm MÃ ĐƠN HÀNG của sàn thay vì
+      // MÃ VẬN ĐƠN — báo ngay lúc này để sửa, chứ cuối tháng mới thấy "—" thì muộn.
+      fetchPackerByCodes([code]).then(function(map){
+        if(!map[code.trim().toLowerCase()]){
+          showToast("errlog-toast","err","Đã ghi, nhưng không tra được ai đóng mã "+code+" — kho chưa quét mã này. Kiểm tra lại: sổ lỗi cần MÃ VẬN ĐƠN (862…, SPXVN…), không phải mã đơn hàng của sàn.");
+        }
+      });
       loadErrorLog();
     }).catch(function(err){
       btn.disabled = false; btn.textContent = "Ghi lại";
@@ -2664,7 +2866,7 @@
           : '<span style="color:var(--ink-3);">—</span>';
         var isEditing = listsReturnsEditingCode === e.code;
         var rowHtml = '<tr class="'+(e.has_problem?"problem-row":"")+'" data-code="'+escapeHtml(e.code)+'">' +
-          '<td class="mono">'+escapeHtml(e.code)+'</td>' +
+          '<td class="mono">'+escapeHtml(e.code)+whoChip(e.staff)+'</td>' +
           '<td><span class="pill pill-'+e.platform+'">'+PLATFORMS[e.platform]+'</span></td>' +
           '<td class="review-cell">'+complaintCell+'</td>' +
           '<td class="review-cell">'+resultCell+'</td>' +
@@ -2807,7 +3009,7 @@
       var items = byDate[d] || [];
       var body = items.length
         ? items.map(function(e){
-            return '<div class="dcell p-'+e.platform+'"><span class="c">'+escapeHtml(e.code)+'</span><span class="m">'+fmtTime(e.scanned_at)+'</span></div>';
+            return '<div class="dcell p-'+e.platform+'"><span class="c">'+escapeHtml(e.code)+'</span><span class="m">'+fmtTime(e.scanned_at)+whoChip(e.staff)+'</span></div>';
           }).join("")
         : '<div class="db-empty">—</div>';
       return '<div class="daycol'+(d===today?" today":"")+'">' +
