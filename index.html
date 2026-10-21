@@ -170,6 +170,16 @@
   .pay-total{ margin-top:4px; padding-top:11px; border-top:2px solid var(--border); border-bottom:none; }
   .pay-total .pay-label{ font-weight:800; color:var(--ink); letter-spacing:.3px; }
   .pay-total .pay-value{ font-family:"Sora"; font-size:19px; font-weight:800; }
+  /* Tỷ lệ lỗi riêng của từng nhân viên — dòng quyết định thưởng chất lượng, nên
+     tô màu theo ngưỡng quy chế (dưới 0,5% xanh / 0,5–1% vàng / trên 1% đỏ) nhưng
+     vẫn nhỏ hơn con số tổng ở trên. */
+  .kpi .rate-row{ display:flex; align-items:baseline; gap:6px; margin-top:4px;
+    padding-top:5px; border-top:1px dashed var(--border-soft); }
+  .kpi .rate{ font-family:"Sora"; font-size:15px; font-weight:700; line-height:1.1; color:var(--ink-2); }
+  .kpi .rate.good{ color:var(--good-ink); }
+  .kpi .rate.warn{ color:var(--warn-ink); }
+  .kpi .rate.crit{ color:var(--crit-ink); }
+  .kpi .rate-den{ font-size:11px; color:var(--ink-3); }
   .kpi-compound{ grid-column:span 2; }
   .kpi-dots .dots{ display:flex; flex-wrap:wrap; gap:5px 16px; font-size:12px; color:var(--ink-2); margin-top:2px; }
   .kpi-dots .dots b{ font-weight:700; margin-left:2px; }
@@ -2167,8 +2177,8 @@
       : Promise.resolve(null);
 
     Promise.all([
-      sbGetAll(T_RETURNS+"?scan_date=gte."+monthStart+"&scan_date=lte."+end+"&select=platform&order=id.asc"),
-      sbGetAll(T_OUTBOUND+"?scan_date=gte."+monthStart+"&scan_date=lte."+end+"&select=platform&order=id.asc"),
+      sbGetAll(T_RETURNS+"?scan_date=gte."+monthStart+"&scan_date=lte."+end+"&select=platform,staff&order=id.asc"),
+      sbGetAll(T_OUTBOUND+"?scan_date=gte."+monthStart+"&scan_date=lte."+end+"&select=platform,staff&order=id.asc"),
       sbGetAll(T_MATCH+"?status=eq.pending&select=platform,match_key,loai,updated_at&order=updated_at.asc,id.asc"),
       surplusQuery,
       sbGetAll(T_RETURNS+"?has_problem=eq.true&scan_date=gte."+monthStart+"&scan_date=lte."+end+"&select=complaint_status,complaint_result&order=id.asc"),
@@ -2244,7 +2254,7 @@
           '<span class="foot">'+errKhoVan+' lỗi / '+khoVanDenom+' đơn · '+rateNote+'</span></div>';
       kpiGrid.innerHTML = tilesHtml;
 
-      renderStaffErrorCards(errLogMonthRows, tilesHtml);
+      renderStaffErrorCards(errLogMonthRows, outboundRows, returnsRows, tilesHtml);
       renderDashOutstanding(outstandingRows);
       renderDashSurplus(surplusRows);
       updateListsBadge();
@@ -2257,30 +2267,57 @@
      thêm thẻ vào lưới KPI, không chặn phần còn lại của Tổng quan.
      Chỉ đếm lỗi KHO VẬN: lỗi sản phẩm là của nhà cung cấp, lỗi khách quan là của
      khách — không phải việc của người đóng đơn. */
-  function renderStaffErrorCards(errRows, baseHtml){
+  function renderStaffErrorCards(errRows, outRows, retRows, baseHtml){
     var kpiGrid = $("kpi-grid");
     var khoVanRows = (errRows || []).filter(function(e){ return e.error_type === "kho_van"; });
     if(!khoVanRows.length) return;
+    // Mẫu số cho tỷ lệ lỗi của từng người = số đơn CHÍNH NGƯỜI ĐÓ quét trong tháng
+    // (đơn đi + đơn hoàn) — cùng công thức với thẻ tỷ lệ chung của cả kho, để so
+    // thẳng được với ngưỡng thưởng chất lượng 0,5% / 1% trong quy chế 20/10/2026.
+    // Gộp theo tên viết thường vì dữ liệu cũ có cả "minh" lẫn "Minh".
+    var scanned = {};
+    function countScan(rows){
+      (rows || []).forEach(function(r){
+        var v = String(r.staff || "").trim();
+        if(!v || looksLikeTrackingCode(v)) return;
+        var k = v.toLowerCase();
+        scanned[k] = (scanned[k] || 0) + 1;
+      });
+    }
+    countScan(outRows); countScan(retRows);
     fetchPackerByCodes(khoVanRows.map(function(e){ return e.code; })).then(function(map){
       if(kpiGrid.innerHTML.indexOf(baseHtml) !== 0) return;   // dashboard đã vẽ lại trong lúc chờ
       var byStaff = {}, order = [], unknown = 0;
       khoVanRows.forEach(function(e){
         var who = map[String(e.code || "").trim().toLowerCase()];
         if(!who){ unknown++; return; }
-        if(!byStaff[who]){ byStaff[who] = { name: who, total: 0, thieu: 0, nham: 0, khac: 0 }; order.push(who); }
-        var s = byStaff[who];
+        var k = who.toLowerCase();
+        if(!byStaff[k]){ byStaff[k] = { name: who, total: 0, thieu: 0, nham: 0, khac: 0 }; order.push(k); }
+        var s = byStaff[k];
         s.total++;
         if(e.detail_reason === "giao_thieu") s.thieu++;
         else if(e.detail_reason === "giao_nham") s.nham++;
         else s.khac++;
       });
+      // Người có quét đơn mà không lỗi nào vẫn hiện thẻ (0% là tin tốt, phải thấy được).
+      Object.keys(scanned).forEach(function(k){
+        if(!byStaff[k]){ byStaff[k] = { name: k, total: 0, thieu: 0, nham: 0, khac: 0 }; order.push(k); }
+      });
       order.sort(function(a, b){ return byStaff[b].total - byStaff[a].total; });
-      var html = order.map(function(n){
-        var s = byStaff[n];
+      var html = order.map(function(k){
+        var s = byStaff[k];
+        var den = scanned[k] || 0;
+        var rate = den ? s.total / den : null;
+        var cls = rate === null ? "" : (rate < 0.005 ? "good" : (rate <= 0.01 ? "warn" : "crit"));
+        var rateLine = rate === null
+          ? '<span class="rate">chưa quét đơn nào tháng này</span>'
+          : '<span class="rate '+cls+'">'+(rate*100).toFixed(2).replace(".", ",")+'%</span>' +
+            '<span class="rate-den">trên '+den+' đơn đã quét</span>';
         var foot = "Giao thiếu <b>"+s.thieu+"</b> · Giao nhầm <b>"+s.nham+"</b>" + (s.khac ? " · Khác <b>"+s.khac+"</b>" : "");
         return '<div class="kpi"><span class="lbl">Lỗi kho vận · '+escapeHtml(s.name)+'</span>' +
           '<span class="val tabular'+(s.total ? " crit" : "")+'">'+s.total+'</span>' +
-          '<span class="foot">'+foot+'</span></div>';
+          '<span class="foot">'+foot+'</span>' +
+          '<span class="rate-row">'+rateLine+'</span></div>';
       }).join("");
       if(unknown){
         html += '<div class="kpi"><span class="lbl">Lỗi chưa tra được người</span>' +
