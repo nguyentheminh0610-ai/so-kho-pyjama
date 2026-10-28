@@ -764,7 +764,7 @@
         thì lấy lương sàn (cao điểm 1/9–hết 2: 3.000.000đ · thấp điểm 1/3–31/8: 1.500.000đ). Cộng thêm công tích đơn hoàn
         2.000đ/đơn khách trả (kiện huỷ chưa đi không tính). Thưởng chuyên cần 500.000đ nếu đi làm đủ cả tháng; thưởng chất lượng
         theo <b>tỷ lệ lỗi Kho vận của riêng từng người</b> (sửa 21/10/2026, trước đó dùng tỷ lệ chung cả kho) —
-        lỗi Kho vận truy được về người đó ÷ số đơn chính người đó quét (đơn đi + đơn hoàn):
+        lỗi Kho vận truy được về người đó ÷ số đơn <b>đi</b> chính người đó quét (sửa 29/10/2026, trước đó cộng cả đơn hoàn — lỗi giao thiếu/giao nhầm chỉ sinh lúc đóng đơn gửi đi):
         &lt;0,5% được 500.000đ · 0,5–1% được 250.000đ · trên 1% không có. Lỗi nào không tra được người đóng (mã ghi sai
         trong mục 5) thì không trừ thưởng của ai.
         Thưởng gắn bó 1.000.000đ mỗi 6 tháng làm liên tục — khoản này chủ shop tự cộng khi tới kỳ, sổ không tự tính.</p>
@@ -2247,7 +2247,7 @@
       // Tỷ lệ lỗi Kho vận — chỉ số quyết định thưởng chất lượng của nhân viên kho
       // (quy chế 20/10/2026), đưa lên Tổng quan để theo dõi cả tháng chứ không
       // đợi tới lúc chốt lương mới biết đã vượt ngưỡng.
-      var khoVanDenom = returnsRows.length + outboundRows.length;
+      var khoVanDenom = outboundRows.length;   // chỉ đơn ĐI — lỗi Kho vận sinh lúc đóng đơn gửi đi (chủ shop chốt 29/10/2026)
       var khoVanRate = khoVanDenom ? errKhoVan / khoVanDenom : null;
       var rateCls = khoVanRate === null ? "" : (khoVanRate < 0.005 ? "good" : (khoVanRate <= 0.01 ? "warn" : "crit"));
       var rateNote = khoVanRate === null ? "chưa có đơn nào trong tháng"
@@ -2256,7 +2256,7 @@
             : "trên 1% — mất thưởng chất lượng"));
       tilesHtml += '<div class="kpi"><span class="lbl">Tỷ lệ lỗi Kho vận (tháng này)</span>' +
           '<span class="val tabular '+rateCls+'">'+(khoVanRate === null ? "—" : (khoVanRate*100).toFixed(2).replace(".", ",")+"%")+'</span>' +
-          '<span class="foot">'+errKhoVan+' lỗi / '+khoVanDenom+' đơn · '+rateNote+'</span></div>';
+          '<span class="foot">'+errKhoVan+' lỗi / '+khoVanDenom+' đơn đi · '+rateNote+'</span></div>';
       kpiGrid.innerHTML = tilesHtml;
 
       renderStaffErrorCards(errLogMonthRows, outboundRows, returnsRows, tilesHtml);
@@ -2276,9 +2276,10 @@
     var kpiGrid = $("kpi-grid");
     var khoVanRows = (errRows || []).filter(function(e){ return e.error_type === "kho_van"; });
     if(!khoVanRows.length) return;
-    // Mẫu số cho tỷ lệ lỗi của từng người = số đơn CHÍNH NGƯỜI ĐÓ quét trong tháng
-    // (đơn đi + đơn hoàn) — cùng công thức với thẻ tỷ lệ chung của cả kho, để so
-    // thẳng được với ngưỡng thưởng chất lượng 0,5% / 1% trong quy chế 20/10/2026.
+    // Mẫu số cho tỷ lệ lỗi của từng người = số đơn ĐI chính người đó quét trong
+    // tháng (chủ shop chốt 29/10/2026, trước đó cộng cả đơn hoàn vào). Lỗi Kho vận
+    // là giao thiếu/giao nhầm — chỉ phát sinh khi đóng đơn gửi đi, nên không cộng
+    // đơn hoàn vào mẫu số. So thẳng được với ngưỡng thưởng chất lượng 0,5% / 1%.
     // Gộp theo tên viết thường vì dữ liệu cũ có cả "minh" lẫn "Minh".
     var scanned = {};
     function countScan(rows, field){
@@ -2313,13 +2314,13 @@
       var html = order.map(function(k){
         var s = byStaff[k];
         var sc = scanned[k] || { out: 0, ret: 0 };
-        var den = sc.out + sc.ret;
+        var den = sc.out;   // chỉ đơn ĐI của chính người đó — lỗi giao thiếu/giao nhầm sinh lúc đóng đơn gửi đi, không liên quan đơn hoàn (chủ shop chốt 29/10/2026)
         var rate = den ? s.total / den : null;
         var cls = rate === null ? "" : (rate < 0.005 ? "good" : (rate <= 0.01 ? "warn" : "crit"));
         var rateLine = rate === null
-          ? '<span class="rate">chưa quét đơn nào tháng này</span>'
+          ? '<span class="rate">chưa quét đơn đi nào tháng này</span>'
           : '<span class="rate '+cls+'">'+(rate*100).toFixed(2).replace(".", ",")+'%</span>' +
-            '<span class="rate-den">trên '+den+' đơn ('+sc.out+' đi + '+sc.ret+' hoàn)</span>';
+            '<span class="rate-den">trên '+den+' đơn đi</span>';
         var foot = "Giao thiếu <b>"+s.thieu+"</b> · Giao nhầm <b>"+s.nham+"</b>" + (s.khac ? " · Khác <b>"+s.khac+"</b>" : "");
         return '<div class="kpi"><span class="lbl">Lỗi kho vận · '+escapeHtml(s.name)+'</span>' +
           '<span class="val tabular'+(s.total ? " crit" : "")+'">'+s.total+'</span>' +
@@ -2410,8 +2411,9 @@
     }).then(function(d){
       var outRows = d.outRows, retRows = d.retRows;
       var errKhoVan = d.khoVanRows.length;
-      // tỷ lệ lỗi chung toàn kho = lỗi kho vận / (đơn hoàn + đơn gửi đi)
-      var denom = retRows.length + outRows.length;
+      // tỷ lệ lỗi chung toàn kho = lỗi kho vận / số đơn ĐI (chủ shop chốt 29/10/2026,
+      // trước đó cộng cả đơn hoàn — lỗi Kho vận chỉ sinh lúc đóng đơn gửi đi)
+      var denom = outRows.length;
       var errRate = denom ? errKhoVan / denom : null;
       // lỗi theo từng người (gộp tên theo chữ thường: dữ liệu cũ có cả "minh" lẫn "Minh")
       var errByStaff = {}, errUntraced = 0;
@@ -2467,10 +2469,10 @@
           p.startedMidMonth = firstDayNum > 1;
         }
         p.attendancePay = (p.isReal && !isCurrentMonth && p.fullAttendance) ? PAY_BONUS_ATTENDANCE : 0;
-        // Tỷ lệ lỗi riêng: lỗi kho vận truy được về người này ÷ số đơn chính
-        // người này quét (đơn đi + đơn hoàn) — cùng công thức với tỷ lệ chung.
+        // Tỷ lệ lỗi riêng: lỗi kho vận truy được về người này ÷ số đơn ĐI chính
+        // người này quét — lỗi giao thiếu/giao nhầm chỉ sinh lúc đóng đơn gửi đi.
         p.errCount = errByStaff[p.name.toLowerCase()] || 0;
-        p.errDenom = p.orders + p.returnsPaid + p.returnsBoom;
+        p.errDenom = p.orders;   // chỉ đơn ĐI (chủ shop chốt 29/10/2026, trước đó cộng cả đơn hoàn)
         p.errRate = p.errDenom ? p.errCount / p.errDenom : null;
         p.quality = payQualityBonus(p.errRate);
         p.qualityPay = p.isReal ? p.quality.amount : 0;
@@ -2486,7 +2488,7 @@
           '<span class="foot">'+list.filter(function(p){ return p.isReal; }).length+' người · dùng cho P&amp;L</span></div>' +
         '<div class="kpi"><span class="lbl">Tỷ lệ lỗi Kho vận (chung cả kho)</span>' +
           '<span class="val tabular '+rateCls+'">'+(errRate === null ? "—" : (errRate*100).toFixed(2).replace(".", ",")+"%")+'</span>' +
-          '<span class="foot">'+errKhoVan+' lỗi / '+denom+' đơn · chỉ để tham khảo, thưởng tính theo tỷ lệ riêng từng người' +
+          '<span class="foot">'+errKhoVan+' lỗi / '+denom+' đơn đi · chỉ để tham khảo, thưởng tính theo tỷ lệ riêng từng người' +
           (errUntraced ? ' · <b>'+errUntraced+' lỗi chưa tra được người</b>, không trừ thưởng của ai' : '') + '</span></div>' +
         '<div class="kpi"><span class="lbl">Ngày trong tháng</span>' +
           '<span class="val tabular">'+daysElapsed+'/'+daysInMonth+'</span>' +
@@ -2527,9 +2529,8 @@
                     : (p.fullAttendance ? "— đủ công cả tháng" : "— nghỉ "+(daysInMonth - p.workDays)+" ngày"))) +
           row("Thưởng chất lượng", payMoney(p.qualityPay),
               "— lỗi kho vận của " + escapeHtml(p.name) + ": " +
-              (p.errRate === null ? "chưa có đơn nào" :
-                "<b>"+(p.errRate*100).toFixed(2).replace(".", ",")+"%</b> ("+p.errCount+" lỗi / "+p.errDenom+" đơn = "+
-                p.orders+" đi + "+(p.returnsPaid+p.returnsBoom)+" hoàn) — "+p.quality.note)) +
+              (p.errRate === null ? "chưa có đơn đi nào" :
+                "<b>"+(p.errRate*100).toFixed(2).replace(".", ",")+"%</b> ("+p.errCount+" lỗi / "+p.errDenom+" đơn đi) — "+p.quality.note)) +
           '<div class="pay-row pay-total"><span class="pay-label">TỔNG' + (isCurrentMonth ? " (tạm tính)" : "") + '</span>' +
             '<span class="pay-value tabular">'+payMoney(p.total)+'</span></div>' +
         '</div>';
