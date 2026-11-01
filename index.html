@@ -760,9 +760,15 @@
     <div class="kpi-grid" id="payroll-kpi"></div>
     <div id="payroll-people"><div class="empty-state">Đang tải…</div></div>
     <div class="card">
-      <p class="sub" style="margin:0;"><b>Cách tính</b> (quy chế chốt 20/10/2026) — Lương chính = số đơn đã quét × 500đ, nếu thấp hơn lương sàn theo mùa
-        thì lấy lương sàn (cao điểm 1/9–hết 2: 3.000.000đ · thấp điểm 1/3–31/8: 1.500.000đ). Cộng thêm công tích đơn hoàn
-        2.000đ/đơn khách trả (kiện huỷ chưa đi không tính). Thưởng chuyên cần 500.000đ nếu đi làm đủ cả tháng; thưởng chất lượng
+      <p class="sub" style="margin:0;"><b>Cách tính</b> (quy chế chốt 20/10/2026, sửa 01/11/2026) — Lương chính = số đơn đã quét × 500đ, nếu thấp hơn lương sàn
+        thì lấy lương sàn. Lương sàn là của <b>cả kho</b> (cao điểm 1/9–hết 2: 3.000.000đ · thấp điểm 1/3–31/8: 1.500.000đ),
+        <b>chia theo ngày</b> cho các bạn đang làm: mỗi ngày lấy sàn ÷ số ngày trong tháng ÷ số bạn đang làm hôm đó, cộng lại cả kỳ làm
+        (1 bạn cả tháng nhận nguyên sàn; 2 bạn cả tháng mỗi bạn một nửa; bạn vào giữa tháng hoặc nghỉ cuối tháng nhận theo số ngày thực tế).
+        Kỳ làm: bắt đầu từ ngày 1 nếu bạn đó đã quét ở tháng trước, không thì từ ngày quét đầu tiên; kết thúc ở ngày quét cuối, trừ khi bạn còn quét ở tháng sau
+        (hoặc ngày quét cuối cách cuối tháng không quá 3 ngày, lúc chưa có dữ liệu tháng sau) thì tính tới cuối tháng. Ngày không có bạn nào làm thì không ai nhận phần của ngày đó.
+        Cộng thêm công tích đơn hoàn 2.000đ cho <b>mọi kiện hoàn đã quét</b>, kể cả kiện huỷ chưa đi (loại C). Thưởng chuyên cần: quỹ 500.000đ chia theo ngày như lương sàn;
+        điều kiện cả tháng là <b>mỗi ngày có đơn đi đều phải có ít nhất 1 đơn do nhân viên (không phải quản lý) quét</b> — một ngày chỉ toàn đơn do quản lý đóng thì cả kho mất thưởng
+        (ngày lễ do quản lý tự đóng vài đơn cũng tính là thiếu, chủ shop tự cộng tay; ngày không có đơn nào thì bỏ qua); thưởng chất lượng
         theo <b>tỷ lệ lỗi Kho vận của riêng từng người</b> (sửa 21/10/2026, trước đó dùng tỷ lệ chung cả kho) —
         lỗi Kho vận truy được về người đó ÷ số đơn <b>đi</b> chính người đó quét (sửa 29/10/2026, trước đó cộng cả đơn hoàn — lỗi giao thiếu/giao nhầm chỉ sinh lúc đóng đơn gửi đi):
         &lt;0,5% được 500.000đ · 0,5–1% được 250.000đ · trên 1% không có. Lỗi nào không tra được người đóng (mã ghi sai
@@ -773,7 +779,7 @@
 
   <!-- Mốc bản để biết trình duyệt có đang giữ bản cũ không: thấy ngày cũ hơn ngày
        vừa sửa thì tải lại cứng (Ctrl/Cmd + Shift + R). Nhớ đổi khi deploy. -->
-  <p class="foot-note">Dữ liệu được lưu chung cho cả nhóm kho trên Supabase, cập nhật gần như theo thời gian thực. · <span id="build-stamp">bản 22/10/2026</span></p>
+  <p class="foot-note">Dữ liệu được lưu chung cho cả nhóm kho trên Supabase, cập nhật gần như theo thời gian thực. · <span id="build-stamp">bản 01/11/2026</span></p>
 </div>
 
 <script>
@@ -1142,7 +1148,7 @@
      shop 20/10/2026) nên cột staff phải sạch tuyệt đối. */
   var STAFF_ROSTER_KEY = "kho_staff_roster";      // danh sách tên trên máy này
   var STAFF_REMOVED_KEY = "kho_staff_removed";    // tên đã xoá tay (để tên mặc định không mọc lại)
-  var STAFF_DEFAULT_ROSTER = ["Giáp", "Minh"];    // tên đang dùng thật trong dữ liệu
+  var STAFF_DEFAULT_ROSTER = ["Giáp", "Huy", "Minh"];    // tên đang dùng thật trong dữ liệu (thêm Huy 01/11/2026)
   var staffChipsEl = $("staff-chips");
   var staffBoxEl = $("staffbox");
 
@@ -2335,13 +2341,20 @@
       kpiGrid.innerHTML = baseHtml + html;
     });
   }
-  /* ================= 6. LƯƠNG (20/10/2026) =================
-     Tính thẳng từ dữ liệu quét của Sổ Kho, theo quy chế chủ shop chốt 20/10/2026:
-       Lương chính  = MAX(lương sàn theo mùa; số đơn NGƯỜI ĐÓ quét × 500đ)
-       + công tích đơn hoàn = số kiện KHÁCH TRẢ (return_type='doi_tra') × 2.000đ
-         (kiện huỷ chưa đi 'boom' = 0đ — chốt 20/10; chỉ cần quét là tính, không
-          bắt điền đủ sku/số lượng)
-       + thưởng chuyên cần / chất lượng / gắn bó
+  /* ================= 6. LƯƠNG (20/10/2026, sửa 01/11/2026) =================
+     Tính thẳng từ dữ liệu quét của Sổ Kho, theo quy chế chủ shop chốt 20/10/2026
+     và sửa 01/11/2026 khi có 2 nhân viên kho (Giáp + Huy):
+       Lương chính  = MAX(lương sàn của người đó; số đơn NGƯỜI ĐÓ quét × 500đ)
+         Lương sàn cả kho (cao điểm 3.000.000đ / thấp điểm 1.500.000đ) CHIA THEO
+         NGÀY cho các bạn đang làm: Σ ngày trong kỳ làm của bạn đó (sàn ÷ số ngày
+         trong tháng ÷ số nhân viên có lương đang làm vào ngày đó). Không gắn
+         cứng số người; kỳ làm suy ra từ dữ liệu quét (xem loadPayroll).
+       + công tích đơn hoàn = MỌI kiện hoàn đã quét × 2.000đ, kể cả loại C 'boom'
+         (huỷ chưa đi) — chốt 01/11/2026, thay quy tắc cũ "boom = 0đ" (20/10)
+       + thưởng chuyên cần: quỹ 500.000đ chia theo ngày như lương sàn; điều kiện
+         cả tháng = mỗi ngày có đơn đi phải có ≥ 1 đơn do nhân viên (không phải
+         quản lý) quét — thay điều kiện cũ "mỗi người đủ 30/30 ngày"
+       + thưởng chất lượng / gắn bó
      Tỷ lệ lỗi dùng cho thưởng chất lượng tính CHUNG cả kho (chốt 20/10) vì sổ lỗi
      ghi người NHẬP lỗi chứ không ghi người GÂY lỗi.
      Mục này cũng là nơi Sổ Vận Hành lấy số chi phí nhân sự cho P&L. */
@@ -2362,11 +2375,32 @@
   function payMoney(n){ return payNumFmt.format(Math.round(n)) + "đ"; }
   // Tên bị hỏng do lỗi cũ (máy quét bắn mã vận đơn vào ô tên) gom riêng, không
   // tính cho ai — xem phần chọn người trực ở đầu file.
+  // Tên thường trả về dạng chuẩn hoá (khớp danh sách người trực không phân biệt
+  // hoa/thường, không có thì viết hoa chữ đầu mỗi từ) để "Huy" và "huy" gộp làm một.
   function payStaffKey(raw){
     var v = String(raw || "").trim();
     if(!v) return "(chưa chọn tên)";
     if(looksLikeTrackingCode(v)) return "(quét nhầm mã vận đơn)";
-    return v;
+    var low = v.toLowerCase();
+    var known = STAFF_DEFAULT_ROSTER.concat(loadStaffRoster()).filter(function(n){
+      return String(n).toLowerCase() === low;
+    })[0];
+    if(known) return known;
+    return v.replace(/(^|\s)(\S)/g, function(_, sp, ch){ return sp + ch.toUpperCase(); });
+  }
+  // Nhân viên có lương = không phải quản lý và không phải dòng tên hỏng "(...)"
+  function payIsStaffName(name){ return name.charAt(0) !== "(" && !payIsManager(name); }
+  function payAddMonths(monthStr, delta){
+    var d = new Date(+monthStr.slice(0, 4), +monthStr.slice(5, 7) - 1 + delta, 1);
+    return d.getFullYear() + "-" + pad2(d.getMonth() + 1);
+  }
+  // Người này có quét (đơn đi hoặc đơn hoàn) trong tháng monthStr không
+  function payHasScansIn(name, monthStr){
+    var r = monthRange(monthStr);
+    var q = "staff=ilike." + encodeURIComponent(name) + "&scan_date=gte." + r.start + "&scan_date=lte." + r.end + "&select=id&limit=1";
+    return Promise.all([sbGet(T_OUTBOUND + "?" + q), sbGet(T_RETURNS + "?" + q)]).then(function(rs){
+      return rs[0].length > 0 || rs[1].length > 0;
+    });
   }
   function payQualityBonus(rate){
     if(rate === null) return { amount: 0, note: "chưa có đơn nào để tính tỷ lệ" };
@@ -2389,7 +2423,7 @@
     var isCurrentMonth = (m === thisMonthStr());
     var daysElapsed = isCurrentMonth ? new Date().getDate() : daysInMonth;
 
-    $("payroll-season").textContent = (high ? "Mùa cao điểm" : "Mùa thấp điểm") + " · lương sàn " + payMoney(base);
+    $("payroll-season").textContent = (high ? "Mùa cao điểm" : "Mùa thấp điểm") + " · lương sàn cả kho " + payMoney(base) + ", chia đều các bạn đang làm";
     $("payroll-people").innerHTML = '<div class="empty-state">Đang tính…</div>';
     $("payroll-kpi").innerHTML = "";
 
@@ -2424,117 +2458,171 @@
         errByStaff[k] = (errByStaff[k] || 0) + 1;
       });
 
+      // Gộp người theo tên chữ thường ("Huy" và "huy" là một), hiển thị tên chuẩn
+      // hoá (chốt 01/11/2026).
       var people = {};
-      function person(key){
-        if(!people[key]) people[key] = { name: key, orders: 0, returnsPaid: 0, returnsBoom: 0, days: {} };
+      function person(name){
+        var key = name.toLowerCase();
+        if(!people[key]) people[key] = { name: name, orders: 0, returnsPaid: 0, returnsBoom: 0, days: {} };
         return people[key];
       }
+      // Ngày chuyên cần: mỗi ngày có đơn đi phải có ít nhất 1 đơn do nhân viên
+      // (không phải quản lý, không phải dòng tên hỏng) quét — chốt 01/11/2026.
+      var outDays = {};
       outRows.forEach(function(r){
-        var p = person(payStaffKey(r.staff));
+        var name = payStaffKey(r.staff);
+        var p = person(name);
         p.orders++; if(r.scan_date) p.days[r.scan_date] = true;
+        if(r.scan_date){
+          if(!outDays[r.scan_date]) outDays[r.scan_date] = false;
+          if(payIsStaffName(name)) outDays[r.scan_date] = true;
+        }
       });
       retRows.forEach(function(r){
         var p = person(payStaffKey(r.staff));
         if(r.return_type === "boom") p.returnsBoom++; else p.returnsPaid++;
         if(r.scan_date) p.days[r.scan_date] = true;
       });
+      var missingDays = Object.keys(outDays).filter(function(k){ return !outDays[k]; }).sort();
+      var attendanceOk = missingDays.length === 0;
 
       var list = Object.keys(people).map(function(k){ return people[k]; });
       if(!list.length){
         $("payroll-people").innerHTML = '<div class="card"><div class="empty-state">Tháng này chưa có đơn nào được quét.</div></div>';
         return;
       }
-      var tong = 0;
       list.forEach(function(p){
         p.isManager = payIsManager(p.name);
-        p.isReal = p.name.charAt(0) !== "(" && !p.isManager;
-        p.workDays = Object.keys(p.days).length;
-        p.orderPay = p.orders * PAY_PER_ORDER;
-        p.mainPay = p.isReal ? Math.max(base, p.orderPay) : p.orderPay;
-        p.returnPay = p.returnsPaid * PAY_PER_RETURN;
-        // Chuyên cần chỉ CHỐT khi hết tháng (chủ shop chốt 20/10): tháng đang
-        // chạy mà so với cả tháng thì lúc nào cũng ra "nghỉ N ngày" — vô nghĩa.
-        p.fullAttendance = p.workDays >= daysInMonth;
-        p.onTrack = p.workDays >= daysElapsed;
-        // Người vào làm giữa tháng (vd. Giáp bắt đầu 10/10) không bao giờ đạt
-        // "đủ 30/30" dù đi làm không nghỉ buổi nào, nên tính thêm: kể từ NGÀY
-        // QUÉT ĐẦU TIÊN trong tháng có bỏ ngày nào không. Sổ không tự cộng
-        // thưởng cho trường hợp này — chỉ nêu ra để chủ shop quyết.
-        var dayList = Object.keys(p.days).sort();
-        p.firstDay = dayList[0] || null;
-        if(p.firstDay){
-          var firstDayNum = +p.firstDay.slice(8, 10);
-          p.spanDays = (isCurrentMonth ? daysElapsed : daysInMonth) - firstDayNum + 1;
-          p.noGapSinceStart = p.workDays >= p.spanDays;
-          p.startedMidMonth = firstDayNum > 1;
-        }
-        p.attendancePay = (p.isReal && !isCurrentMonth && p.fullAttendance) ? PAY_BONUS_ATTENDANCE : 0;
-        // Tỷ lệ lỗi riêng: lỗi kho vận truy được về người này ÷ số đơn ĐI chính
-        // người này quét — lỗi giao thiếu/giao nhầm chỉ sinh lúc đóng đơn gửi đi.
-        p.errCount = errByStaff[p.name.toLowerCase()] || 0;
-        p.errDenom = p.orders;   // chỉ đơn ĐI (chủ shop chốt 29/10/2026, trước đó cộng cả đơn hoàn)
-        p.errRate = p.errDenom ? p.errCount / p.errDenom : null;
-        p.quality = payQualityBonus(p.errRate);
-        p.qualityPay = p.isReal ? p.quality.amount : 0;
-        p.total = p.isReal ? (p.mainPay + p.returnPay + p.attendancePay + p.qualityPay) : 0;
-        if(p.isReal) tong += p.total;
+        p.isReal = payIsStaffName(p.name);
       });
-      list.sort(function(a, b){ return (b.isReal - a.isReal) || (b.isManager - a.isManager) || (b.total - a.total); });
+      var staffList = list.filter(function(p){ return p.isReal; });
 
-      var rateCls = errRate === null ? "" : (errRate < 0.005 ? "good" : (errRate <= 0.01 ? "warn" : "crit"));
-      $("payroll-kpi").innerHTML =
-        '<div class="kpi"><span class="lbl">Tổng lương tháng' + (isCurrentMonth ? " (tạm tính)" : "") + '</span>' +
-          '<span class="val tabular">'+payMoney(tong)+'</span>' +
-          '<span class="foot">'+list.filter(function(p){ return p.isReal; }).length+' người · dùng cho P&amp;L</span></div>' +
-        '<div class="kpi"><span class="lbl">Tỷ lệ lỗi Kho vận (chung cả kho)</span>' +
-          '<span class="val tabular '+rateCls+'">'+(errRate === null ? "—" : (errRate*100).toFixed(2).replace(".", ",")+"%")+'</span>' +
-          '<span class="foot">'+errKhoVan+' lỗi / '+denom+' đơn đi · chỉ để tham khảo, thưởng tính theo tỷ lệ riêng từng người' +
-          (errUntraced ? ' · <b>'+errUntraced+' lỗi chưa tra được người</b>, không trừ thưởng của ai' : '') + '</span></div>' +
-        '<div class="kpi"><span class="lbl">Ngày trong tháng</span>' +
-          '<span class="val tabular">'+daysElapsed+'/'+daysInMonth+'</span>' +
-          '<span class="foot">'+(isCurrentMonth ? "tháng đang chạy — thưởng chốt khi hết tháng" : "tháng đã đủ")+'</span></div>';
+      // Mỗi người có đi làm ở tháng trước / tháng sau không — để biết "kỳ làm" của
+      // người đó (vào giữa tháng hay nghỉ cuối tháng).
+      return Promise.all(staffList.map(function(p){
+        return Promise.all([payHasScansIn(p.name, payAddMonths(m, -1)), payHasScansIn(p.name, payAddMonths(m, 1))])
+          .then(function(rs){ p.hadPrev = rs[0]; p.hasNext = rs[1]; });
+      })).then(function(){
+        // Kỳ làm của từng người (chốt 01/11/2026): bắt đầu = ngày 1 nếu đã quét ở
+        // tháng trước, không thì ngày quét đầu tiên; kết thúc = ngày quét cuối, trừ
+        // khi còn quét ở tháng sau (hoặc ngày cuối cách cuối tháng ≤ 3 ngày, lúc
+        // chưa có dữ liệu tháng sau; tháng đang chạy cũng tính tới cuối tháng) thì
+        // tới cuối tháng.
+        staffList.forEach(function(p){
+          var dl = Object.keys(p.days).sort();
+          var first = +dl[0].slice(8, 10), last = +dl[dl.length - 1].slice(8, 10);
+          p.from = p.hadPrev ? 1 : first;
+          p.to = (p.hasNext || isCurrentMonth || daysInMonth - last <= 3) ? daysInMonth : last;
+        });
+        // Số nhân viên có lương đang làm vào từng ngày; ngày không ai làm (N=0)
+        // thì phần sàn / quỹ chuyên cần của ngày đó không ai nhận.
+        var workers = [];
+        for(var dd = 1; dd <= daysInMonth; dd++){
+          workers[dd] = staffList.filter(function(p){ return p.from <= dd && dd <= p.to; }).length;
+        }
+        // Chia một quỹ cho người p theo ngày: Σ quỹ ÷ số ngày trong tháng ÷ N(ngày).
+        function dailyShare(p, fund){
+          var sum = 0;
+          for(var x = p.from; x <= p.to; x++){ if(workers[x]) sum += fund / daysInMonth / workers[x]; }
+          return Math.round(sum);
+        }
+        // "A ngày chia 2 người + B ngày chia 1 người" để thẻ lương nói rõ cách chia
+        function splitNote(p){
+          var cnt = {};
+          for(var x = p.from; x <= p.to; x++){ if(workers[x]) cnt[workers[x]] = (cnt[workers[x]] || 0) + 1; }
+          return Object.keys(cnt).sort(function(a, b){ return b - a; }).map(function(n){
+            return cnt[n] + " ngày chia " + n + " người";
+          }).join(" + ");
+        }
+        function dayLabel(x){ return fmtDayShort(m + "-" + pad2(x)); }
 
-      $("payroll-people").innerHTML = list.map(function(p){
-        if(p.isManager){
-          return '<div class="card"><div class="card-head"><h2>'+escapeHtml(p.name)+'</h2>' +
-            '<span class="sub" style="margin:0;">quản lý — không tính lương đóng đơn</span></div>' +
-            '<p class="sub" style="margin:0;">Đã quét '+p.orders+' đơn đi · '+p.returnsPaid+' kiện khách trả · '+p.returnsBoom+' kiện huỷ, trong '+
-            Object.keys(p.days).length+' ngày. Số liệu để đối chiếu, không cộng vào tổng chi phí lương.</p></div>';
-        }
-        if(!p.isReal){
-          return '<div class="card"><div class="card-head"><h2>'+escapeHtml(p.name)+'</h2>' +
-            '<span class="sub" style="margin:0;">không tính lương cho ai</span></div>' +
-            '<p class="sub" style="margin:0;">'+p.orders+' đơn đi · '+(p.returnsPaid+p.returnsBoom)+' kiện hoàn bị ghi thiếu/sai tên người quét. ' +
-            'Từ bản cập nhật 20/10 app bắt buộc chọn tên trước khi quét nên số này sẽ không tăng thêm; ' +
-            'các dòng cũ cần chủ shop xác nhận gán cho ai.</p></div>';
-        }
-        var row = function(label, value, note){
-          return '<div class="pay-row"><span class="pay-label">'+label+(note ? ' <span class="sub" style="margin:0;">'+note+'</span>' : '')+'</span>' +
-            '<span class="pay-value tabular">'+value+'</span></div>';
-        };
-        return '<div class="card">' +
-          '<div class="card-head"><h2>'+escapeHtml(p.name)+'</h2>' +
-            '<span class="sub" style="margin:0;">'+p.workDays+'/'+(isCurrentMonth ? daysElapsed+" ngày đã qua" : daysInMonth+" ngày")+' có quét</span></div>' +
-          row("Đơn <b>đi</b> đã quét", p.orders + " đơn × " + payNumFmt.format(PAY_PER_ORDER) + "đ = " + payMoney(p.orderPay),
-              "— chỉ đơn gửi đi, đơn hoàn tính riêng ở dòng dưới") +
-          row("Lương sàn " + (high ? "(cao điểm)" : "(thấp điểm)"), payMoney(base)) +
-          row("<b>Lương chính</b>", "<b>"+payMoney(p.mainPay)+"</b>", p.orderPay > base ? "— theo số đơn" : "— theo lương sàn") +
-          row("Công tích đơn hoàn", p.returnsPaid + " kiện × " + payNumFmt.format(PAY_PER_RETURN) + "đ = " + payMoney(p.returnPay),
-              p.returnsBoom ? "("+p.returnsBoom+" kiện huỷ chưa đi — không tính)" : "") +
-          row("Thưởng chuyên cần", isCurrentMonth ? "chốt cuối tháng" : payMoney(p.attendancePay),
-              p.startedMidMonth && p.noGapSinceStart
-                ? "— không nghỉ ngày nào kể từ "+fmtDate(p.firstDay)+", nhưng chưa đủ cả tháng: chủ shop tự quyết"
-                : (isCurrentMonth
-                    ? (p.onTrack ? "— đang đủ công" : "— đã vắng "+(daysElapsed - p.workDays)+" ngày, khó đạt")
-                    : (p.fullAttendance ? "— đủ công cả tháng" : "— nghỉ "+(daysInMonth - p.workDays)+" ngày"))) +
-          row("Thưởng chất lượng", payMoney(p.qualityPay),
-              "— lỗi kho vận của " + escapeHtml(p.name) + ": " +
-              (p.errRate === null ? "chưa có đơn đi nào" :
-                "<b>"+(p.errRate*100).toFixed(2).replace(".", ",")+"%</b> ("+p.errCount+" lỗi / "+p.errDenom+" đơn đi) — "+p.quality.note)) +
-          '<div class="pay-row pay-total"><span class="pay-label">TỔNG' + (isCurrentMonth ? " (tạm tính)" : "") + '</span>' +
-            '<span class="pay-value tabular">'+payMoney(p.total)+'</span></div>' +
-        '</div>';
-      }).join("");
+        var tong = 0;
+        list.forEach(function(p){
+          p.workDays = Object.keys(p.days).length;
+          p.orderPay = p.orders * PAY_PER_ORDER;
+          p.basePay = p.isReal ? dailyShare(p, base) : 0;
+          p.mainPay = p.isReal ? Math.max(p.basePay, p.orderPay) : p.orderPay;
+          // Công tích hoàn 2.000đ cho MỌI kiện hoàn đã quét, kể cả loại C 'boom'
+          // (huỷ chưa đi) — chốt 01/11/2026, thay quy tắc cũ "boom = 0đ".
+          p.returnPay = (p.returnsPaid + p.returnsBoom) * PAY_PER_RETURN;
+          // Chuyên cần chỉ CHỐT khi hết tháng (chủ shop chốt 20/10).
+          p.attendancePay = (p.isReal && !isCurrentMonth && attendanceOk) ? dailyShare(p, PAY_BONUS_ATTENDANCE) : 0;
+          // Tỷ lệ lỗi riêng: lỗi kho vận truy được về người này ÷ số đơn ĐI chính
+          // người này quét — lỗi giao thiếu/giao nhầm chỉ sinh lúc đóng đơn gửi đi.
+          p.errCount = errByStaff[p.name.toLowerCase()] || 0;
+          p.errDenom = p.orders;   // chỉ đơn ĐI (chủ shop chốt 29/10/2026, trước đó cộng cả đơn hoàn)
+          p.errRate = p.errDenom ? p.errCount / p.errDenom : null;
+          p.quality = payQualityBonus(p.errRate);
+          p.qualityPay = p.isReal ? p.quality.amount : 0;
+          p.total = p.isReal ? (p.mainPay + p.returnPay + p.attendancePay + p.qualityPay) : 0;
+          if(p.isReal) tong += p.total;
+        });
+        list.sort(function(a, b){ return (b.isReal - a.isReal) || (b.isManager - a.isManager) || (b.total - a.total); });
+
+        var rateCls = errRate === null ? "" : (errRate < 0.005 ? "good" : (errRate <= 0.01 ? "warn" : "crit"));
+        var missingTxt = missingDays.map(function(k){ return fmtDayShort(k); }).join(", ");
+        $("payroll-kpi").innerHTML =
+          '<div class="kpi"><span class="lbl">Tổng lương tháng' + (isCurrentMonth ? " (tạm tính)" : "") + '</span>' +
+            '<span class="val tabular">'+payMoney(tong)+'</span>' +
+            '<span class="foot">'+staffList.length+' người · dùng cho P&amp;L</span></div>' +
+          '<div class="kpi"><span class="lbl">Tỷ lệ lỗi Kho vận (chung cả kho)</span>' +
+            '<span class="val tabular '+rateCls+'">'+(errRate === null ? "—" : (errRate*100).toFixed(2).replace(".", ",")+"%")+'</span>' +
+            '<span class="foot">'+errKhoVan+' lỗi / '+denom+' đơn đi · chỉ để tham khảo, thưởng tính theo tỷ lệ riêng từng người' +
+            (errUntraced ? ' · <b>'+errUntraced+' lỗi chưa tra được người</b>, không trừ thưởng của ai' : '') + '</span></div>' +
+          '<div class="kpi"><span class="lbl">Thưởng chuyên cần (cả kho)</span>' +
+            '<span class="val tabular '+(attendanceOk ? "good" : "crit")+'">'+(attendanceOk ? (isCurrentMonth ? "Đang đủ" : "Đạt") : "Thiếu "+missingDays.length+" ngày")+'</span>' +
+            '<span class="foot">'+(attendanceOk
+              ? "ngày nào có đơn đi cũng có nhân viên quét"
+              : "ngày chỉ toàn đơn do quản lý đóng: "+missingTxt)+'</span></div>' +
+          '<div class="kpi"><span class="lbl">Ngày trong tháng</span>' +
+            '<span class="val tabular">'+daysElapsed+'/'+daysInMonth+'</span>' +
+            '<span class="foot">'+(isCurrentMonth ? "tháng đang chạy — thưởng chốt khi hết tháng" : "tháng đã đủ")+'</span></div>';
+
+        $("payroll-people").innerHTML = list.map(function(p){
+          if(p.isManager){
+            return '<div class="card"><div class="card-head"><h2>'+escapeHtml(p.name)+'</h2>' +
+              '<span class="sub" style="margin:0;">quản lý — không tính lương đóng đơn</span></div>' +
+              '<p class="sub" style="margin:0;">Đã quét '+p.orders+' đơn đi · '+p.returnsPaid+' kiện khách trả · '+p.returnsBoom+' kiện huỷ, trong '+
+              Object.keys(p.days).length+' ngày. Số liệu để đối chiếu, không cộng vào tổng chi phí lương.</p></div>';
+          }
+          if(!p.isReal){
+            return '<div class="card"><div class="card-head"><h2>'+escapeHtml(p.name)+'</h2>' +
+              '<span class="sub" style="margin:0;">không tính lương cho ai</span></div>' +
+              '<p class="sub" style="margin:0;">'+p.orders+' đơn đi · '+(p.returnsPaid+p.returnsBoom)+' kiện hoàn bị ghi thiếu/sai tên người quét. ' +
+              'Từ bản cập nhật 20/10 app bắt buộc chọn tên trước khi quét nên số này sẽ không tăng thêm; ' +
+              'các dòng cũ cần chủ shop xác nhận gán cho ai.</p></div>';
+          }
+          var row = function(label, value, note){
+            return '<div class="pay-row"><span class="pay-label">'+label+(note ? ' <span class="sub" style="margin:0;">'+note+'</span>' : '')+'</span>' +
+              '<span class="pay-value tabular">'+value+'</span></div>';
+          };
+          var attNote = attendanceOk
+            ? (isCurrentMonth
+                ? "— đang đủ: ngày nào có đơn đi cũng có nhân viên quét"
+                : "— đạt: quỹ " + payMoney(PAY_BONUS_ATTENDANCE) + " chia theo ngày làm (" + splitNote(p) + ")")
+            : "— <b>cả kho mất thưởng</b>: ngày chỉ toàn đơn do quản lý đóng (" + missingTxt +
+              "). Nếu là ngày lễ thì chủ shop tự cộng tay";
+          return '<div class="card">' +
+            '<div class="card-head"><h2>'+escapeHtml(p.name)+'</h2>' +
+              '<span class="sub" style="margin:0;">'+p.workDays+' ngày có quét</span></div>' +
+            row("Đơn <b>đi</b> đã quét", p.orders + " đơn × " + payNumFmt.format(PAY_PER_ORDER) + "đ = " + payMoney(p.orderPay),
+                "— chỉ đơn gửi đi, đơn hoàn tính riêng ở dòng dưới") +
+            row("Lương sàn " + (high ? "(cao điểm)" : "(thấp điểm)"), payMoney(p.basePay),
+                "— sàn cả kho " + payMoney(base) + " chia theo ngày, kỳ làm " + dayLabel(p.from) + "–" + dayLabel(p.to) +
+                " (" + splitNote(p) + ")") +
+            row("<b>Lương chính</b>", "<b>"+payMoney(p.mainPay)+"</b>", p.orderPay > p.basePay ? "— theo số đơn" : "— theo lương sàn") +
+            row("Công tích đơn hoàn", (p.returnsPaid + p.returnsBoom) + " kiện × " + payNumFmt.format(PAY_PER_RETURN) + "đ = " + payMoney(p.returnPay),
+                p.returnsBoom ? "(gồm "+p.returnsBoom+" kiện huỷ chưa đi — loại C vẫn tính)" : "") +
+            row("Thưởng chuyên cần", isCurrentMonth ? "chốt cuối tháng" : payMoney(p.attendancePay), attNote) +
+            row("Thưởng chất lượng", payMoney(p.qualityPay),
+                "— lỗi kho vận của " + escapeHtml(p.name) + ": " +
+                (p.errRate === null ? "chưa có đơn đi nào" :
+                  "<b>"+(p.errRate*100).toFixed(2).replace(".", ",")+"%</b> ("+p.errCount+" lỗi / "+p.errDenom+" đơn đi) — "+p.quality.note)) +
+            '<div class="pay-row pay-total"><span class="pay-label">TỔNG' + (isCurrentMonth ? " (tạm tính)" : "") + '</span>' +
+              '<span class="pay-value tabular">'+payMoney(p.total)+'</span></div>' +
+          '</div>';
+        }).join("");
+      });
     }).catch(function(err){
       console.error("payroll load error", err);
       $("payroll-people").innerHTML = '<div class="card"><div class="empty-state">Không tải được dữ liệu lương: '+escapeHtml(err.message || err)+'</div></div>';
