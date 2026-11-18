@@ -192,7 +192,10 @@
   .notice-board{ background:var(--warn-soft); border:1px solid var(--warn); border-radius:var(--radius); padding:14px 16px; margin-bottom:14px; }
   .retalert-board{ background:#fff2f2; border:1px solid #e5484d; }
   .retalert-board h2{ color:#c62a2f; }
-  .retalert-item{ display:flex; gap:10px; align-items:baseline; flex-wrap:wrap; padding:7px 0; border-top:1px dashed #e5a0a3; font-size:13px; }
+  .retalert-board{ padding-top:8px; padding-bottom:8px; }
+  .retalert-hint{ margin:2px 0 4px; font-size:12px; color:#8a4a4a; }
+  .retalert-item{ display:flex; gap:8px; align-items:baseline; flex-wrap:wrap; padding:4px 0; border-top:1px dashed #e5a0a3; font-size:12.5px; }
+  .retalert-item .btn{ padding:2px 8px; font-size:11.5px; }
   .retalert-item:first-child{ border-top:none; }
   .retalert-item .code{ font-weight:700; font-family:ui-monospace,Menlo,monospace; }
   .retalert-item .days{ color:#c62a2f; font-weight:600; }
@@ -408,8 +411,12 @@
     <div class="notice-board-head">
       <h2>🔴 Hoàn về chưa nhận <span class="n" id="retalert-count">0</span></h2>
     </div>
-    <p style="margin:4px 0 2px; font-size:12.5px; color:#8a4a4a;">Sàn báo các kiện dưới đây ĐÃ TRẢ VỀ kho quá 3 ngày nhưng chưa thấy tích trong Sổ Kho — tìm kiện/hỏi bưu tá; khi quét vào "Tích đơn hoàn" dòng sẽ tự biến mất.</p>
-    <div id="retalert-list"></div>
+    <div id="retalert-body">
+      <p class="retalert-hint">Sàn báo đã về kho &gt; 3 ngày nhưng chưa tích — quét vào "Tích đơn hoàn" là tự hết.</p>
+      <div id="retalert-list"></div>
+      <button type="button" class="btn ghost small" id="retalert-more" style="width:auto;margin-top:6px;" hidden></button>
+      <div id="retalert-list-old" hidden></div>
+    </div>
     <p class="retalert-transit" id="retalert-transit" hidden></p>
   </div>
 
@@ -778,8 +785,26 @@
         <button class="btn ghost small" id="payroll-reload">Tính lại</button>
       </div>
     </div>
+    <details id="payroll-old" open>
+    <summary id="payroll-old-sum" style="display:none;cursor:pointer;font-weight:600;margin:12px 0;">Cách cũ: tháng này vẫn trả theo cách này (bấm để xem, dùng để đối chiếu)</summary>
     <div class="kpi-grid" id="payroll-kpi"></div>
     <div id="payroll-people"><div class="empty-state">Đang tải…</div></div>
+    <div class="card" id="payroll-oldhow">
+      <p class="sub" style="margin:0;"><b>Cách tính</b> (quy chế chốt 20/10/2026, sửa 01/11/2026) — Lương chính = số đơn đã quét × 500đ, nếu thấp hơn
+        phần lương sàn của bạn thì lấy lương sàn. Lương sàn là của <b>cả kho</b> (cao điểm 1/9–hết 2: 3.000.000đ · thấp điểm 1/3–31/8: 1.500.000đ),
+        chia đều cho các bạn đang làm và tính <b>theo ngày</b>: mỗi ngày = sàn ÷ số ngày trong tháng ÷ số bạn đang làm hôm đó (quản lý không tính).
+        Kỳ làm của mỗi bạn: từ ngày 1 nếu tháng trước đã có quét, không thì từ ngày quét đầu tiên; tới ngày quét cuối cùng, hoặc tới hết tháng nếu
+        sang tháng sau vẫn còn quét (hay quét lần cuối cách cuối tháng không quá 3 ngày). Công tích đơn hoàn 2.000đ cho <b>mọi</b> kiện hoàn đã quét,
+        kể cả kiện huỷ chưa đi. Thưởng chuyên cần: quỹ 500.000đ chia theo ngày như lương sàn; điều kiện là mỗi ngày có đơn đi thì phải có ít nhất 1 đơn do
+        nhân viên (không phải quản lý) quét — chỉ cần 1 ngày toàn đơn do quản lý đóng là cả kho mất thưởng chuyên cần tháng đó (ngày lễ quản lý tự đóng:
+        chủ shop tự cộng tay); thưởng chất lượng
+        theo <b>tỷ lệ lỗi Kho vận của riêng từng người</b> (sửa 21/10/2026, trước đó dùng tỷ lệ chung cả kho) —
+        lỗi Kho vận truy được về người đó ÷ số đơn <b>đi</b> chính người đó quét (sửa 29/10/2026, trước đó cộng cả đơn hoàn — lỗi giao thiếu/giao nhầm chỉ sinh lúc đóng đơn gửi đi):
+        &lt;0,5% được 500.000đ · 0,5–1% được 250.000đ · trên 1% không có. Lỗi nào không tra được người đóng (mã ghi sai
+        trong mục 5) thì không trừ thưởng của ai.
+        Thưởng gắn bó 1.000.000đ mỗi 6 tháng làm liên tục — khoản này chủ shop tự cộng khi tới kỳ, sổ không tự tính.</p>
+    </div>
+    </details>
     <!-- ===== LƯƠNG CÁCH MỚI — chạy từ tháng 12/2026 (tháng trước đó vẫn hiện cách cũ ở trên). Xóa khối này + khối script "CÁCH MỚI: LƯƠNG" khi không dùng nữa. ===== -->
     <div id="paynew" hidden>
       <div class="card" id="paynew-banner" style="display:none;margin-top:12px;"><h2 style="margin:0 0 4px;">Lương cách mới (xem trước)</h2>
@@ -809,26 +834,11 @@
     </div>
     <!-- ===== HẾT KHỐI HTML LƯƠNG CÁCH MỚI ===== -->
 
-    <div class="card" id="payroll-oldhow">
-      <p class="sub" style="margin:0;"><b>Cách tính</b> (quy chế chốt 20/10/2026, sửa 01/11/2026) — Lương chính = số đơn đã quét × 500đ, nếu thấp hơn
-        phần lương sàn của bạn thì lấy lương sàn. Lương sàn là của <b>cả kho</b> (cao điểm 1/9–hết 2: 3.000.000đ · thấp điểm 1/3–31/8: 1.500.000đ),
-        chia đều cho các bạn đang làm và tính <b>theo ngày</b>: mỗi ngày = sàn ÷ số ngày trong tháng ÷ số bạn đang làm hôm đó (quản lý không tính).
-        Kỳ làm của mỗi bạn: từ ngày 1 nếu tháng trước đã có quét, không thì từ ngày quét đầu tiên; tới ngày quét cuối cùng, hoặc tới hết tháng nếu
-        sang tháng sau vẫn còn quét (hay quét lần cuối cách cuối tháng không quá 3 ngày). Công tích đơn hoàn 2.000đ cho <b>mọi</b> kiện hoàn đã quét,
-        kể cả kiện huỷ chưa đi. Thưởng chuyên cần: quỹ 500.000đ chia theo ngày như lương sàn; điều kiện là mỗi ngày có đơn đi thì phải có ít nhất 1 đơn do
-        nhân viên (không phải quản lý) quét — chỉ cần 1 ngày toàn đơn do quản lý đóng là cả kho mất thưởng chuyên cần tháng đó (ngày lễ quản lý tự đóng:
-        chủ shop tự cộng tay); thưởng chất lượng
-        theo <b>tỷ lệ lỗi Kho vận của riêng từng người</b> (sửa 21/10/2026, trước đó dùng tỷ lệ chung cả kho) —
-        lỗi Kho vận truy được về người đó ÷ số đơn <b>đi</b> chính người đó quét (sửa 29/10/2026, trước đó cộng cả đơn hoàn — lỗi giao thiếu/giao nhầm chỉ sinh lúc đóng đơn gửi đi):
-        &lt;0,5% được 500.000đ · 0,5–1% được 250.000đ · trên 1% không có. Lỗi nào không tra được người đóng (mã ghi sai
-        trong mục 5) thì không trừ thưởng của ai.
-        Thưởng gắn bó 1.000.000đ mỗi 6 tháng làm liên tục — khoản này chủ shop tự cộng khi tới kỳ, sổ không tự tính.</p>
-    </div>
   </section>
 
   <!-- Mốc bản để biết trình duyệt có đang giữ bản cũ không: thấy ngày cũ hơn ngày
        vừa sửa thì tải lại cứng (Ctrl/Cmd + Shift + R). Nhớ đổi khi deploy. -->
-  <p class="foot-note">Dữ liệu được lưu chung cho cả nhóm kho trên Supabase, cập nhật gần như theo thời gian thực. · <span id="build-stamp">bản 18/11/2026 (lương cách mới hiện từ 11/2026, thay hẳn cách cũ từ 12/2026)</span></p>
+  <p class="foot-note">Dữ liệu được lưu chung cho cả nhóm kho trên Supabase, cập nhật gần như theo thời gian thực. · <span id="build-stamp">bản 18/11/2026 b (tab Lương: bảng mới lên trên, cách cũ gập lại)</span></p>
 </div>
 
 <script>
@@ -1365,6 +1375,7 @@
   // Bảng platform_returns_feed do job hàng ngày trên PC trực ghi (nguồn: Sapo /admin/order_returns.json).
   // Khớp mã quét với CẢ mã vận đơn chiều hoàn LẪN chiều đi (outbound_tracking có thể nhiều mã, nối bằng "+").
   var RETALERT_GRACE_DAYS = 3;
+  var RETALERT_RECENT_DAYS = 7; /* chỉ hiện đơn trễ <= 7 ngày; cũ hơn ẩn sau nút "Xem thêm" (chốt 18/11/2026) */
   function loadReturnAlerts(){
     if(!state.connected) return;
     Promise.all([
@@ -1409,8 +1420,26 @@
     $("retalert-count").textContent = overdue.length;
     if(!overdue.length && !transit){ board.hidden = true; return; }
     board.hidden = false;
-    overdue.sort(function(a,b){ return b.days - a.days; });
-    list.innerHTML = overdue.map(function(o){
+    overdue.sort(function(a,b){ return a.days - b.days; }); /* mới trễ lên trước */
+    var recent = overdue.filter(function(o){ return o.days <= RETALERT_RECENT_DAYS; });
+    var old = overdue.filter(function(o){ return o.days > RETALERT_RECENT_DAYS; });
+    $("retalert-count").textContent = recent.length;
+    var oldList = $("retalert-list-old"), moreBtn = $("retalert-more");
+    oldList.innerHTML = alertItemsHtml(old);
+    if(old.length){
+      moreBtn.hidden = false;
+      moreBtn.textContent = (oldList.hidden ? "Xem thêm " : "Ẩn bớt ") + old.length + " đơn cũ (trễ > " + RETALERT_RECENT_DAYS + " ngày)";
+    } else { moreBtn.hidden = true; oldList.hidden = true; }
+    list.innerHTML = recent.length ? alertItemsHtml(recent) : '<p class="retalert-hint">Không có đơn trễ trong ' + RETALERT_RECENT_DAYS + ' ngày gần đây.</p>';
+    if(transit){
+      transitEl.hidden = false;
+      transitEl.textContent = "+ " + transit + " kiện đang trên đường về (chưa quá hạn).";
+    } else {
+      transitEl.hidden = true;
+    }
+  }
+  function alertItemsHtml(items){
+    return items.map(function(o){
       var r = o.row;
       var plat = PLATFORMS[r.platform] || r.platform || "?";
       var codeShow = r.return_tracking || (String(r.outbound_tracking||"").split("+")[0]) || "?";
@@ -1418,23 +1447,22 @@
       return '<div class="retalert-item">' +
         '<span class="code">' + escapeHtml(codeShow) + '</span>' +
         '<span class="days">trễ ' + o.days + ' ngày</span>' +
-        '<span class="meta">' + escapeHtml(plat) + ' · đơn ' + escapeHtml(r.order_name || "?") + ' · sàn báo về ' + ve +
-        (r.return_type === "delivery_failed" ? ' · bom/giao thất bại' : ' · khách đổi trả') + '</span>' +
+        '<span class="meta">' + escapeHtml(plat) + ' · ' + escapeHtml(r.order_name || "?") + ' · về ' + ve +
+        (r.return_type === "delivery_failed" ? ' · bom' : ' · đổi trả') + '</span>' +
         '<button type="button" class="btn ghost small retalert-dismiss" data-id="' + r.id + '" data-code="' + escapeHtml(codeShow) + '" style="width:auto;margin-left:auto;">Đã xử lý — ẩn</button>' +
       '</div>';
     }).join("");
-    if(!overdue.length) list.innerHTML = "";
-    if(transit){
-      transitEl.hidden = false;
-      transitEl.textContent = "Ngoài ra có " + transit + " kiện hoàn đang trên đường về (chưa quá hạn) — sẽ tự theo dõi tiếp.";
-    } else {
-      transitEl.hidden = true;
-    }
   }
   // "Đã xử lý — ẩn": dùng khi kiện KHÔNG thể quét được nữa (xác định mất hàng, đã khiếu nại,
   // sàn báo sai...) — ghi lý do + người ẩn vào feed, kiện biến mất khỏi cảnh báo ở mọi nơi
   // (web này, Sổ Vận Hành, báo cáo Telegram). Kiện tìm thấy và quét bình thường thì KHÔNG cần nút này.
-  $("retalert-list").addEventListener("click", function(e){
+  $("retalert-more").addEventListener("click", function(){
+    var oldList = $("retalert-list-old");
+    oldList.hidden = !oldList.hidden;
+    var n = oldList.querySelectorAll(".retalert-item").length;
+    this.textContent = (oldList.hidden ? "Xem thêm " : "Ẩn bớt ") + n + " đơn cũ (trễ > " + RETALERT_RECENT_DAYS + " ngày)";
+  });
+  $("retalert-body").addEventListener("click", function(e){
     var btn = e.target.closest(".retalert-dismiss");
     if(!btn) return;
     var id = btn.getAttribute("data-id");
@@ -2738,6 +2766,10 @@
       $("paynew").style.display = showNew ? "" : "none"; $("paynew").hidden = false;
       $("paynew-banner").style.display = (showNew && !era) ? "" : "none";
       if(showNew && !era) loadPayrollNew();
+      // Tháng 11: bảng mới lên trên, cách cũ gập lại bên dưới (chốt 18/11/2026). Các tháng khác: cách cũ như thường.
+      var po = $("payroll-old"), pn = $("paynew"), both = showNew && !era;
+      po.parentNode.insertBefore(both ? pn : po, both ? po : pn);
+      po.open = !both; $("payroll-old-sum").style.display = both ? "" : "none";
       ["payroll-kpi","payroll-people","payroll-oldhow"].forEach(function(id){ $(id).style.display = era ? "none" : ""; });
       if(era){ $("payroll-season").textContent = (payIsHighSeason(+mEra.slice(5, 7)) ? "Mùa cao điểm" : "Mùa thấp điểm") + " · quỹ cứng cả kho " + payMoney(payNewFund(payIsHighSeason(+mEra.slice(5, 7)))); loadPayrollNew(); return; }
     } catch(e){ console.error(e); }
