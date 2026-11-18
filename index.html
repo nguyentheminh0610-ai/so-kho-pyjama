@@ -782,6 +782,8 @@
     <div id="payroll-people"><div class="empty-state">Đang tải…</div></div>
     <!-- ===== LƯƠNG CÁCH MỚI — chạy từ tháng 12/2026 (tháng trước đó vẫn hiện cách cũ ở trên). Xóa khối này + khối script "CÁCH MỚI: LƯƠNG" khi không dùng nữa. ===== -->
     <div id="paynew" hidden>
+      <div class="card" id="paynew-banner" style="display:none;margin-top:12px;"><h2 style="margin:0 0 4px;">Lương cách mới (xem trước)</h2>
+        <p class="sub" style="margin:0;">Tính song song để đối chiếu với cách cũ ở trên. Tháng này vẫn trả theo cách cũ; từ 1/12/2026 chỉ còn cách mới.</p></div>
       <div class="kpi-grid" id="paynew-kpi"></div>
       <div id="paynew-people"><div class="empty-state">Đang tải…</div></div>
       <details class="card" style="margin-top:12px;"><summary style="cursor:pointer;font-weight:600;">Tỉ lệ lỗi và đơn trễ</summary><div id="paynew-rates" style="margin-top:10px;"></div></details>
@@ -826,7 +828,7 @@
 
   <!-- Mốc bản để biết trình duyệt có đang giữ bản cũ không: thấy ngày cũ hơn ngày
        vừa sửa thì tải lại cứng (Ctrl/Cmd + Shift + R). Nhớ đổi khi deploy. -->
-  <p class="foot-note">Dữ liệu được lưu chung cho cả nhóm kho trên Supabase, cập nhật gần như theo thời gian thực. · <span id="build-stamp">bản 17/11/2026 (lương cách mới từ 12/2026)</span></p>
+  <p class="foot-note">Dữ liệu được lưu chung cho cả nhóm kho trên Supabase, cập nhật gần như theo thời gian thực. · <span id="build-stamp">bản 18/11/2026 (lương cách mới hiện từ 11/2026, thay hẳn cách cũ từ 12/2026)</span></p>
 </div>
 
 <script>
@@ -2731,8 +2733,11 @@
   function loadPayroll(){
     if(!state.connected) return;
     try { // CÁCH MỚI: từ tháng 12/2026 chỉ hiện lương cách mới; các tháng trước đó vẫn là cách cũ bên dưới
-      var mEra = $("payroll-month").value || thisMonthStr(), era = payNewEra(mEra);
-      $("paynew").style.display = era ? "" : "none"; $("paynew").hidden = false;
+      // Chốt 18/11/2026: lương cách mới hiện từ tháng 11/2026 (đặt SAU cách cũ, tính song song); từ 12/2026 cách cũ tự ẩn.
+      var mEra = $("payroll-month").value || thisMonthStr(), era = payNewEra(mEra), showNew = era || mEra >= PN_SHOW_MONTH;
+      $("paynew").style.display = showNew ? "" : "none"; $("paynew").hidden = false;
+      $("paynew-banner").style.display = (showNew && !era) ? "" : "none";
+      if(showNew && !era) loadPayrollNew();
       ["payroll-kpi","payroll-people","payroll-oldhow"].forEach(function(id){ $(id).style.display = era ? "none" : ""; });
       if(era){ $("payroll-season").textContent = (payIsHighSeason(+mEra.slice(5, 7)) ? "Mùa cao điểm" : "Mùa thấp điểm") + " · quỹ cứng cả kho " + payMoney(payNewFund(payIsHighSeason(+mEra.slice(5, 7)))); loadPayrollNew(); return; }
     } catch(e){ console.error(e); }
@@ -3037,6 +3042,7 @@
   }
 
   var PN_START_MONTH = "2026-12";   // lương cách mới chạy từ tháng này; các tháng trước vẫn hiện cách cũ
+  var PN_SHOW_MONTH = "2026-11";    // từ tháng này BẢNG LƯƠNG MỚI hiện song song bên dưới cách cũ (chốt 18/11/2026); từ PN_START_MONTH cách cũ tự ẩn
   function payNewEra(m){ return m >= PN_START_MONTH; }
   var payNewLast = null;
   // Gom số liệu 1 tháng cho lương cách mới + thẻ "Đơn trước 16h" (dùng chung 1 chỗ tính để 2 nơi không lệch số).
