@@ -560,10 +560,20 @@
       </div>
     </div>
 
+    <!-- ===== CÁCH MỚI (tạm thời) — ĐÓNG CHUNG, chỉ quản lý thấy ===== -->
+    <div class="scan-layout" id="copack-mgr" style="margin-top:16px;" hidden>
+      <div class="card">
+        <h2>Kiểm tra đóng chung theo ngày <span class="count-chip">cách mới · tạm thời</span></h2>
+        <label class="field-label">Ngày</label>
+        <div style="display:flex;gap:8px;"><input type="date" id="cc-date" /><button class="btn ghost" id="cc-run">Kiểm tra</button><button class="btn ghost" id="cc-run7">7 ngày gần nhất</button></div>
+        <div id="cc-result" style="margin-top:10px;"></div>
+      </div>
+    </div>
+
     <div class="scan-layout" style="margin-top:16px;">
       <div class="card">
         <h2>Đơn đã in nhưng chưa đóng được</h2>
-        <p class="sub">Quét mã đơn đã in nhưng chưa đóng được hôm nay (thiếu hàng, lỗi hàng…) để khỏi quên cuối ca</p>
+        <p class="sub">Quét mã đơn đã in nhưng chưa đóng được hôm nay (hết hàng hoặc lý do khác) để khỏi quên cuối ca</p>
 
         <label class="field-label">Mã đơn</label>
         <input class="order-code" id="unpacked-code" placeholder="Quét hoặc nhập mã đơn…" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false" />
@@ -571,13 +581,14 @@
 
         <label class="field-label">Lý do</label>
         <select id="unpacked-reason">
-          <option value="thieu_hang">Thiếu hàng</option>
-          <option value="loi_hang">Lỗi hàng</option>
+          <option value="het_hang">Hết hàng</option>
           <option value="khac">Khác</option>
         </select>
 
-        <label class="field-label">Ghi chú (không bắt buộc)</label>
+        <label class="field-label" id="unpacked-note-label">Ghi chú (không bắt buộc)</label>
         <input type="text" id="unpacked-note" placeholder="Ghi chú thêm nếu cần…" autocomplete="off" />
+        <p class="hint" id="unpacked-note-hint" hidden style="color:var(--crit);">Chọn "Khác" thì bắt buộc ghi lý do chi tiết, tối thiểu 10 ký tự.</p>
+        <div id="unpacked-stale-warn" class="hint" hidden style="margin-top:10px;"></div>
 
         <button class="btn" id="unpacked-submit">Ghi lại đơn chưa đóng</button>
         <div class="toast" id="unpacked-toast"></div>
@@ -617,6 +628,16 @@
       <div class="kpi"><span class="lbl">Số đơn hoàn (tháng này)</span><span class="val">—</span><span class="foot">Đang tải dữ liệu…</span></div>
       <div class="kpi"><span class="lbl">Số đơn đi (tháng này)</span><span class="val">—</span><span class="foot">Đang tải dữ liệu…</span></div>
       <div class="kpi"><span class="lbl">Số đơn khiếu nại</span><span class="val">—</span><span class="foot">Đang tải dữ liệu…</span></div>
+    </div>
+    <div class="card" id="cut-card">
+      <div class="card-head"><h2>Đơn trước 16h</h2></div>
+      <p class="hint" id="cut-note" style="margin:0 0 8px;">Đang tải…</p>
+      <div class="kpi-grid" id="cut-people"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
+        <button type="button" class="btn ghost small" id="cut-yday" style="width:auto;margin-top:0;">Xem đơn trễ hôm qua</button>
+        <button type="button" class="btn ghost small" id="cut-30" style="width:auto;margin-top:0;">Xem đơn trễ 30 ngày qua</button>
+      </div>
+      <div id="cut-detail" hidden style="margin-top:10px;"></div>
     </div>
     <div class="card" style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
       <div>
@@ -759,7 +780,34 @@
     </div>
     <div class="kpi-grid" id="payroll-kpi"></div>
     <div id="payroll-people"><div class="empty-state">Đang tải…</div></div>
-    <div class="card">
+    <!-- ===== LƯƠNG CÁCH MỚI — chạy từ tháng 12/2026 (tháng trước đó vẫn hiện cách cũ ở trên). Xóa khối này + khối script "CÁCH MỚI: LƯƠNG" khi không dùng nữa. ===== -->
+    <div id="paynew" hidden>
+      <div class="kpi-grid" id="paynew-kpi"></div>
+      <div id="paynew-people"><div class="empty-state">Đang tải…</div></div>
+      <details class="card" style="margin-top:12px;"><summary style="cursor:pointer;font-weight:600;">Tỉ lệ lỗi và đơn trễ</summary><div id="paynew-rates" style="margin-top:10px;"></div></details>
+      <details class="card" style="margin-top:12px;"><summary style="cursor:pointer;font-weight:600;">Cách tính (chốt 17/11/2026, chạy từ 1/12/2026)</summary>
+        <p class="sub" style="margin:10px 0 0;line-height:1.7;">
+          <b>Lương cứng:</b> quỹ cả kho mỗi tháng là 4.000.000đ mùa cao điểm (tháng 9 đến hết tháng 2) và 1.500.000đ mùa thấp điểm (tháng 3 đến 8). Tháng 28 hay 31 ngày vẫn đủ quỹ. Mỗi ngày lấy quỹ ÷ số ngày của tháng rồi chia đều cho các bạn đang trong kỳ hôm đó (cao điểm: 1 bạn 4tr, 2 bạn 2tr mỗi bạn, 3 bạn 1,33tr mỗi bạn; thấp điểm: 1 bạn 1,5tr, 2 bạn 750k mỗi bạn). Trả cố định, không trừ theo ngày công; bạn làm hộ nhau thì tự bù trừ ngoài sổ.<br>
+          <b>Tiền đơn:</b> 300đ mỗi đơn riêng, 150đ mỗi đơn chung. <b>Hoàn:</b> 2.000đ mỗi kiện hoàn đã quét, kể cả hủy chưa đi.<br>
+          <b>Thưởng chất lượng:</b> tính riêng từng bạn theo tỷ lệ lỗi Kho vận: dưới 0,5% được 500.000đ, từ 0,5% đến 1% được 250.000đ, trên 1% không có (đơn chung: mỗi người 0,5 đơn và 0,5 lỗi). Ngày vào làm: vào ngày 1 nhận đủ; vào từ ngày 2 đến ngày 15 thì chia 2; vào từ ngày 16 trở đi thì không có. Bạn nghỉ giữa tháng cũng chia 2.<br>
+          <b>Thưởng đơn trước 16h:</b> quỹ 500.000đ chia đều như lương cứng, tính riêng từng bạn: bạn nào trễ dưới 10% mới nhận phần của mình. Tử/mẫu mỗi ngày chia cho các bạn có quét hôm đó; ngày không bạn nào làm thì toàn bộ đơn đến hạn tính trễ, chia đều cho các bạn trong kỳ; ngày đặc biệt bỏ khỏi tử và mẫu.<br>
+          <b>Thưởng gắn bó:</b> anh Minh cộng tay như cũ, chưa gồm trong tổng.</p></details>
+      <details class="card" id="paynew-special" hidden style="margin-top:12px;"><summary style="cursor:pointer;font-weight:600;">Ngày đặc biệt (chỉ quản lý)</summary>
+        <p class="sub" style="margin:10px 0;">Ngày lễ, shipper nghỉ, sàn lỗi: bỏ khỏi tử và mẫu của thưởng 16h; vẫn tính ngày công và vẫn chia quỹ. Chỉ sửa được trong tháng hiện tại (tháng trước chỉ sửa được tới ngày 5).</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+          <input type="date" id="sd-date" />
+          <label style="display:flex;gap:6px;align-items:center;"><input type="checkbox" id="sd-on" checked /> Ngày đặc biệt</label>
+          <select id="sd-type"><option value="le">Ngày lễ</option><option value="shipper_nghi">Shipper nghỉ</option><option value="san_loi">Sàn lỗi</option></select>
+          <input type="text" id="sd-note" placeholder="Ghi chú…" style="flex:1;min-width:140px;" />
+          <button class="btn" id="sd-save" style="width:auto;margin-top:0;">Lưu</button>
+        </div>
+        <div class="toast" id="sd-toast"></div>
+        <div id="sd-list" style="margin-top:10px;"></div>
+      </details>
+    </div>
+    <!-- ===== HẾT KHỐI HTML LƯƠNG CÁCH MỚI ===== -->
+
+    <div class="card" id="payroll-oldhow">
       <p class="sub" style="margin:0;"><b>Cách tính</b> (quy chế chốt 20/10/2026, sửa 01/11/2026) — Lương chính = số đơn đã quét × 500đ, nếu thấp hơn
         phần lương sàn của bạn thì lấy lương sàn. Lương sàn là của <b>cả kho</b> (cao điểm 1/9–hết 2: 3.000.000đ · thấp điểm 1/3–31/8: 1.500.000đ),
         chia đều cho các bạn đang làm và tính <b>theo ngày</b>: mỗi ngày = sàn ÷ số ngày trong tháng ÷ số bạn đang làm hôm đó (quản lý không tính).
@@ -778,7 +826,7 @@
 
   <!-- Mốc bản để biết trình duyệt có đang giữ bản cũ không: thấy ngày cũ hơn ngày
        vừa sửa thì tải lại cứng (Ctrl/Cmd + Shift + R). Nhớ đổi khi deploy. -->
-  <p class="foot-note">Dữ liệu được lưu chung cho cả nhóm kho trên Supabase, cập nhật gần như theo thời gian thực. · <span id="build-stamp">bản 01/11/2026</span></p>
+  <p class="foot-note">Dữ liệu được lưu chung cho cả nhóm kho trên Supabase, cập nhật gần như theo thời gian thực. · <span id="build-stamp">bản 17/11/2026 (lương cách mới từ 12/2026)</span></p>
 </div>
 
 <script>
@@ -838,7 +886,10 @@
   var COMPLAINT_RESULT_LABELS = { thanh_cong:"Thành công", that_bai:"Thất bại" };
   var RTYPE_LABELS = { boom:"Huỷ / Bom hàng", doi_tra:"Hoàn trả" };
   // Lý do đơn đã in nhưng chưa đóng được trong ngày.
-  var UNPACKED_REASON_LABELS = { thieu_hang:"Thiếu hàng", loi_hang:"Lỗi hàng", khac:"Khác" };
+  // Chốt 17/11/2026: chỉ còn 2 lý do. Giữ nhãn cũ để dòng chưa chuyển (nếu còn) vẫn hiện đúng chữ.
+  var UNPACKED_REASON_LABELS = { het_hang:"Hết hàng", khac:"Khác", thieu_hang:"Thiếu hàng (cũ)", loi_hang:"Lỗi hàng (cũ)" };
+  var UNPACKED_OTHER_MIN = 10; // "Khác" phải ghi lý do chi tiết tối thiểu 10 ký tự (database cũng kiểm)
+  var UNPACKED_STALE_DAYS = 7; // quản lý được cảnh báo nhẹ khi đơn treo quá 7 ngày
   var RECON_PERIODS = 3; // gộp 3 kỳ báo cáo gần nhất khi đối chiếu tự động
 
   /* Tự nhận diện sàn qua mã vận đơn (mã đơn vị vận chuyển in trên tem):
@@ -1208,19 +1259,22 @@
       localStorage.removeItem(STAFF_DATE_KEY);
     }
     renderStaffChips();
+    try { copackRefreshUI(); } catch(e){} // CÁCH MỚI: đóng chung
     if(name) closeStaffGate();
   }
   var staffEditMode = false;   // bật bằng nút ✎ — hiện dấu × để xoá tên thêm nhầm
   function renderStaffChips(){
     var roster = loadStaffRoster();
     var cur = state.staffName || "";
+    var co = copackCurrentWith() || "";   // CÁCH MỚI: người đóng cùng (tối đa 2 người trực)
     staffChipsEl.innerHTML = roster.map(function(n){
-      var on = n.toLowerCase() === cur.toLowerCase();
+      var on = n.toLowerCase() === cur.toLowerCase() || (co && n.toLowerCase() === co.toLowerCase());
       var x = staffEditMode ? '<span class="x" data-del="'+escapeHtml(n)+'" title="Xoá tên này khỏi danh sách">✕</span>' : "";
       return '<button type="button" class="staff-chip'+(on ? " on" : "")+'" data-staff="'+escapeHtml(n)+'">'+escapeHtml(n)+x+'</button>';
     }).join("")
       + '<button type="button" class="staff-chip add" id="staff-add" title="Thêm người mới vào danh sách máy này">+</button>'
-      + '<button type="button" class="staff-chip edit'+(staffEditMode ? " on" : "")+'" id="staff-edit" title="Sửa danh sách tên (xoá tên thêm nhầm)">'+(staffEditMode ? "Xong" : "✎")+'</button>';
+      + '<button type="button" class="staff-chip edit'+(staffEditMode ? " on" : "")+'" id="staff-edit" title="Sửa danh sách tên (xoá tên thêm nhầm)">'+(staffEditMode ? "Xong" : "✎")+'</button>'
+      + (co ? '<span class="hint" style="flex-basis:100%;margin:4px 0 0;"><b>Đóng chung: '+escapeHtml(cur)+' + '+escapeHtml(co)+'</b> — mỗi người 150đ/đơn, tự tắt lúc 00:00. Bấm lại tên để bỏ.</span>' : '');
     staffBoxEl.classList.toggle("none-selected", !cur);
   }
   function addStaffMember(){
@@ -1265,7 +1319,7 @@
     if(e.target.closest("#staff-edit")){ staffEditMode = !staffEditMode; renderStaffChips(); return; }
     if(e.target.closest("#staff-add")){ addStaffMember(); return; }
     var chip = e.target.closest("[data-staff]");
-    if(chip) setStaffName(chip.getAttribute("data-staff"));
+    if(chip) staffChipTap(chip.getAttribute("data-staff"));   // CÁCH MỚI: tối đa 2 người
   });
 
   /* ---------------- màn BẮT BUỘC chọn người trực (20/10/2026, chủ shop yêu cầu) ----------------
@@ -1816,6 +1870,16 @@
     el._t = setTimeout(function(){ el.className = "toast"; }, cls === "dup" ? 5000 : 3200);
   }
 
+  /* CÁCH MỚI (tạm thời): kiện hoàn quét trùng. Mã vận đơn đã có ràng buộc duy nhất nên dòng thứ 2 không bao giờ được lưu
+     => không cộng tiền lần 2 (mỗi mã chỉ tính 1 lần). Hàm này chỉ báo rõ "đã quét lúc… bởi…" và ghi cờ trùng vào log. */
+  function returnsDupNote(code, platform){
+    sbGet(T_RETURNS+"?code=eq."+encodeURIComponent(code)+"&select=scanned_at,staff&limit=1").then(function(rows){
+      var f = rows[0]; if(!f) return;
+      var when = fmtTime(f.scanned_at)+" "+fmtDate(dateStr(new Date(f.scanned_at)));
+      showToast("returns-toast","dup","Mã "+code+" đã quét lúc "+when+" bởi "+(f.staff || "—")+" — không cộng tiền lần nữa.");
+      return insertRow(T_RETDUP, { code: code, platform: platform || null, staff: state.staffName || null, first_scanned_at: f.scanned_at, first_staff: f.staff || null });
+    }).catch(function(){});
+  }
   function submitReturn(){
     var codeInput = $("returns-code");
     var norm = normalizeScanCode(codeInput.value);
@@ -1843,6 +1907,7 @@
       if(res.dup){
         showToast("returns-toast","dup","Mã "+code+" đã được tích rồi (trùng mã vận đơn) — xem dòng vàng bên bảng.");
         returnsLastCode = code;
+        returnsDupNote(code, platform); // CÁCH MỚI (tạm thời): báo "đã quét lúc… bởi…" + ghi log trùng
         loadReturnsToday();
       } else {
         showToast("returns-toast","ok","Đã tích đơn hoàn "+code+" — "+RTYPE_LABELS[rtype]+".");
@@ -1884,7 +1949,7 @@
         var head = '<tr class="day-group-row"><td colspan="3">'+dayLabel(g.date)+'<span class="day-count">· '+g.items.length+' đơn</span></td></tr>';
         var itemsHtml = g.items.map(function(e){
           return '<tr data-code="'+escapeHtml(e.code)+'">' +
-            '<td class="mono"><span class="sw" style="width:8px;height:8px;border-radius:50%;background:var(--'+e.platform+');display:inline-block;margin-right:6px;"></span>'+escapeHtml(e.code)+whoChip(e.staff)+'</td>' +
+            '<td class="mono"><span class="sw" style="width:8px;height:8px;border-radius:50%;background:var(--'+e.platform+');display:inline-block;margin-right:6px;"></span>'+escapeHtml(e.code)+whoChip(e.staff)+(e.co_staff ? ' <span class="count-chip" title="Đóng chung">+ '+escapeHtml(e.co_staff)+'</span>' : '')+'</td>' +
             '<td class="tabular">'+fmtTime(e.scanned_at)+'</td>' +
             '<td class="row-actions"><button type="button" class="del" data-code="'+escapeHtml(e.code)+'">Xoá</button></td>' +
           '</tr>';
@@ -1957,14 +2022,19 @@
 
     var platform = state.outboundPlatform;
     var staff = state.staffName;
-    insertRow(T_OUTBOUND, { code: code, platform: platform, staff: staff, scan_date: todayStr() }).then(function(res){
+    var coStaff = copackCurrentWith(); // CÁCH MỚI: người thứ 2 ở khu "đang trực", null nếu đóng riêng
+    if(coStaff && coStaff.toLowerCase() === String(staff).toLowerCase()) coStaff = null;
+    if(coStaff && payIsManager(staff) && !payIsManager(coStaff)){ var tmp = staff; staff = coStaff; coStaff = tmp; } // cặp có quản lý: nhân viên là người quét, quản lý là người đóng cùng
+    var outRow = { code: code, platform: platform, staff: staff, scan_date: todayStr() };
+    if(coStaff) outRow.co_staff = coStaff; // chỉ gửi khi đóng chung để máy chưa chạy SQL vẫn quét được đơn riêng
+    insertRow(T_OUTBOUND, outRow).then(function(res){
       if(res.dup){
         showToast("outbound-toast","dup","Mã "+code+" đã được tích rồi (trùng mã vận đơn) — xem dòng vàng bên bảng.");
         outboundLastCode = code;
       } else {
         showToast("outbound-toast","ok","Đã tích đơn gửi đi "+code+".");
         // cập nhật cache ngay (không đợi reload) để lần quét tiếp theo vẫn so được với mã vừa lưu.
-        outboundTodayCache.unshift({ code: code, platform: platform, staff: staff, scan_date: todayStr(), scanned_at: new Date().toISOString() });
+        outboundTodayCache.unshift({ code: code, platform: platform, staff: staff, co_staff: coStaff || null, scan_date: todayStr(), scanned_at: new Date().toISOString() });
       }
       codeInput.value = "";
       state.outboundPlatform = null;
@@ -1978,11 +2048,144 @@
   }
   $("outbound-code").addEventListener("keydown", function(e){ if(e.key === "Enter"){ e.preventDefault(); submitOutbound(); } });
 
+  /* ================= CÁCH MỚI (tạm thời): ĐÓNG CHUNG — chốt 17/11/2026 =================
+     Muốn bỏ sau này: xóa cả khối này, khối HTML "copack-mgr", hàm staffChipTap + đoạn "CÁCH MỚI" trong renderStaffChips, dòng co_staff trong submitOutbound,
+     chip "+ tên" ở renderOutboundToday và lời gọi copackRefreshUI() trong setStaffName. Cách cũ không bị đụng:
+     đơn chung vẫn có staff = người đứng quét nên cách cũ đếm y như trước.
+     staff = người đứng quét; co_staff = người đóng cùng (có thể là quản lý); null = đóng riêng. */
+  var T_COPACK_LOG = "warehouse_copack_log";
+  var COPACK_KEY = "kho_copack"; // lưu theo máy: {with, date, staff}
+  function copackLoad(){
+    try { var o = JSON.parse(localStorage.getItem(COPACK_KEY) || "null"); return (o && o.with && o.date) ? o : null; }
+    catch(e){ return null; }
+  }
+  function copackLog(action, staff, withName){
+    insertRow(T_COPACK_LOG, { action: action, staff: staff || null, co_staff: withName || null, scan_date: todayStr() }).catch(function(){});
+  }
+  function copackExpire(o){ // qua 00:00 -> tự tắt, ghi log
+    localStorage.removeItem(COPACK_KEY);
+    copackLog("auto_off", o.staff, o.with);
+    copackRender();
+  }
+  function copackCurrentWith(){
+    var o = copackLoad();
+    if(!o) return null;
+    if(o.date !== todayStr()){ copackExpire(o); return null; }
+    return o.with;
+  }
+  function copackFillSelect(sel, firstHtml){
+    var prev = sel.value;
+    var html = firstHtml || "";
+    loadStaffRoster().forEach(function(n){ html += '<option value="'+escapeHtml(n)+'">'+escapeHtml(n)+'</option>'; });
+    sel.innerHTML = html;
+    if(prev) sel.value = prev;
+    if(prev && sel.value !== prev) sel.selectedIndex = 0;
+  }
+  function copackRender(){ renderStaffChips(); }   // đóng chung hiển thị ngay trên các nút chọn người đang trực
+  // Bấm tên ở khu "đang trực": chọn tối đa 2 người. Người thứ 2 = đóng cùng (co_staff). Bấm lại tên để bỏ.
+  function copackSet(name){
+    var old = copackLoad();
+    if(name){
+      localStorage.setItem(COPACK_KEY, JSON.stringify({ with: name, date: todayStr(), staff: state.staffName }));
+      if(old && old.with !== name) copackLog("off", state.staffName, old.with);
+      if(!old || old.with !== name) copackLog("on", state.staffName, name);
+    } else {
+      localStorage.removeItem(COPACK_KEY);
+      if(old) copackLog("off", state.staffName, old.with);
+    }
+    renderStaffChips();
+  }
+  function staffChipTap(n){
+    var cur = state.staffName || "", co = copackCurrentWith();
+    var isCur = cur && n.toLowerCase() === cur.toLowerCase();
+    var isCo = co && n.toLowerCase() === co.toLowerCase();
+    if(!cur){ setStaffName(n); return; }
+    if(isCur){
+      if(co){ copackSet(null); setStaffName(co); }   // bỏ người đầu -> người đóng cùng thành người đang trực
+      else setStaffName(n);
+      return;
+    }
+    if(isCo){ copackSet(null); return; }               // bấm lại người đóng cùng = bỏ
+    copackSet(n);                                      // thêm người thứ 2 (đã có người thứ 2 thì thay)
+  }
+  setInterval(function(){ var o = copackLoad(); if(o && o.date !== todayStr()) copackExpire(o); }, 30000);
+
+  /* --- phần dành cho quản lý: kiểm tra đóng chung hằng ngày --- */
+  function copackRefreshUI(){
+    copackRender();
+    var isMgr = false;
+    try { isMgr = payIsManager(state.staffName); } catch(e){ isMgr = false; }
+    $("copack-mgr").hidden = !isMgr;
+    if(!isMgr) return;
+    if(!$("cc-date").value) $("cc-date").value = todayStr();
+  }
+  function patchWhere(table, query, fields){
+    return fetch(sbUrl(table+"?"+query), { method:"PATCH", headers: sbHeaders({ "Prefer":"return=representation" }), body: JSON.stringify(fields) })
+      .then(function(res){
+        if(!res.ok) return res.text().then(function(t){ throw new Error("HTTP "+res.status+": "+t); });
+        return res.json();
+      });
+  }
+  // Tính kiểm tra 1 ngày từ danh sách đơn. Quy đổi tính bằng số nguyên: đơn riêng = 2 điểm, đơn chung = 1 điểm/người.
+  function ccCompute(rows){
+    var seen = {}, uniq = [];
+    rows.forEach(function(r){ if(!seen[r.code]){ seen[r.code] = 1; uniq.push(r); } });
+    var per = {}, bad = [], blank = [], nChung = 0, units = 0;
+    function P(n){ var k = String(n).trim().toLowerCase(); return per[k] || (per[k] = { name: String(n).trim(), rieng: 0, chung: 0 }); }
+    uniq.forEach(function(r){
+      var s = String(r.staff || "").trim(), c = String(r.co_staff || "").trim();
+      if(!s){ blank.push(r.code); return; }
+      if(c){
+        nChung++;
+        if(s.toLowerCase() === c.toLowerCase()){ bad.push(r.code); P(s).chung++; units += 1; return; }
+        P(s).chung++; P(c).chung++; units += 2;
+      } else { P(s).rieng++; units += 2; }
+    });
+    var people = Object.keys(per).map(function(k){ return per[k]; });
+    var pay = 0;
+    people.forEach(function(p){ p.units = 2*p.rieng + p.chung; p.money = 300*p.rieng + 150*p.chung; if(!payIsManager(p.name)) pay += p.money; });
+    return { n: uniq.length, nChung: nChung, people: people, bad: bad, blank: blank, units: units, pay: pay, ok1: bad.length === 0,
+             ok2: units === 2*uniq.length, ok3: pay <= 300*uniq.length };
+  }
+  function ccRender(date, r){
+    var mark = function(ok){ return ok ? "✅" : "⚠️"; };
+    var rowsHtml = r.people.map(function(p){
+      return '<tr><td>'+escapeHtml(p.name)+(payIsManager(p.name) ? ' <span class="count-chip">quản lý</span>' : '')+'</td><td class="tabular">'+p.rieng+'</td><td class="tabular">'+p.chung+'</td><td class="tabular">'+(p.units/2)+'</td><td class="tabular">'+(payIsManager(p.name) ? "—" : payMoney(p.money))+'</td></tr>';
+    }).join("");
+    return '<p class="hint" style="margin:0 0 6px;"><b>'+date+'</b> — '+r.n+' đơn đi</p>' +
+      '<div class="twrap"><table><thead><tr><th>Người</th><th>Riêng</th><th>Chung</th><th>Quy đổi</th><th>Tiền đơn</th></tr></thead><tbody>'+rowsHtml+'</tbody></table></div>' +
+      '<ul style="margin:8px 0 0;padding-left:18px;">' +
+      '<li>'+mark(r.ok1)+' Mỗi đơn chung có đúng 2 người khác nhau'+(r.ok1 ? '' : ' — lỗi: '+escapeHtml(r.bad.slice(0,5).join(", ")))+'</li>' +
+      '<li>'+mark(r.ok2)+' Tổng đơn quy đổi của mọi người = số đơn đi duy nhất ('+(r.units/2)+' / '+r.n+')'+(r.blank.length ? ' — '+r.blank.length+' đơn không có tên người quét' : '')+'</li>' +
+      '<li>'+mark(r.ok3)+' Tổng tiền đơn trả '+payMoney(r.pay)+' ≤ '+payMoney(300*r.n)+' (300đ × số đơn đi)</li>' +
+      '<li>ℹ️ Số đơn chung trong ngày: <b>'+r.nChung+'</b></li></ul>';
+  }
+  function ccFetch(date){ return sbGetAll(T_OUTBOUND+"?scan_date=eq."+date+"&select=code,staff,co_staff&order=id.asc").then(ccCompute); }
+  $("cc-run").addEventListener("click", function(){
+    var d = $("cc-date").value; if(!d) return;
+    $("cc-result").textContent = "Đang kiểm tra…";
+    ccFetch(d).then(function(r){ $("cc-result").innerHTML = ccRender(d, r); })
+      .catch(function(e){ $("cc-result").textContent = "Lỗi: "+(e.message || e); });
+  });
+  $("cc-run7").addEventListener("click", function(){
+    $("cc-result").textContent = "Đang kiểm tra 7 ngày…";
+    var days = []; for(var i = 0; i < 7; i++){ var d = new Date(); d.setDate(d.getDate() - i); days.push(dateStr(d)); }
+    Promise.all(days.map(function(d){ return ccFetch(d).then(function(r){ return [d, r]; }); })).then(function(list){
+      $("cc-result").innerHTML = '<div class="twrap"><table><thead><tr><th>Ngày</th><th>Đơn đi</th><th>Đơn chung</th><th>2 người khác nhau</th><th>Quy đổi = đơn đi</th><th>Tiền ≤ 300×đơn</th></tr></thead><tbody>' +
+        list.map(function(x){ var r = x[1], m = function(ok){ return ok ? "✅" : "⚠️"; };
+          return '<tr><td>'+x[0]+'</td><td class="tabular">'+r.n+'</td><td class="tabular">'+r.nChung+'</td><td>'+m(r.ok1)+'</td><td>'+m(r.ok2)+'</td><td>'+m(r.ok3)+'</td></tr>'; }).join("") +
+        '</tbody></table></div>';
+    }).catch(function(e){ $("cc-result").textContent = "Lỗi: "+(e.message || e); });
+  });
+  setTimeout(copackRefreshUI, 0); // sau khi cả script đã nạp xong (PAY_MANAGERS... còn khai báo phía dưới)
+  /* ================= HẾT KHỐI CÁCH MỚI: ĐÓNG CHUNG ================= */
+
   /* ---------------- Đơn đã in nhưng chưa đóng được (thiếu hàng, lỗi hàng…) ----------------
      Chỉ là sổ ghi để theo dõi trong ngày — không có trạng thái "đã xong", ghi nhầm thì xoá tay. */
   function loadUnpackedToday(){
     sbGet(T_UNPACKED+"?scan_date=eq."+todayStr()+"&order=created_at.desc").then(function(rows){
       renderUnpackedToday(rows);
+      loadUnpackedStaleWarn();
     }).catch(function(){});
   }
   function renderUnpackedToday(rows){
@@ -2030,6 +2233,11 @@
     var platform = state.unpackedPlatform;
     var reason = $("unpacked-reason").value;
     var note = $("unpacked-note").value.trim();
+    if(reason === "khac" && note.length < UNPACKED_OTHER_MIN){
+      showToast("unpacked-toast","err","Chọn \"Khác\" thì phải ghi lý do chi tiết, tối thiểu "+UNPACKED_OTHER_MIN+" ký tự (hiện "+note.length+").");
+      $("unpacked-note").focus();
+      return;
+    }
     var staff = state.staffName;
     insertRow(T_UNPACKED, { code: code, platform: platform, reason: reason, note: note || null, staff: staff, scan_date: todayStr() }).then(function(){
       showToast("unpacked-toast","ok","Đã ghi đơn "+code+" chưa đóng được.");
@@ -2042,6 +2250,34 @@
       showToast("unpacked-toast","err","Có lỗi khi lưu, thử lại.");
       console.error(err);
     });
+  }
+  function syncUnpackedNoteRequired(){
+    var need = $("unpacked-reason").value === "khac";
+    $("unpacked-note-label").textContent = need ? "Lý do chi tiết (bắt buộc, tối thiểu "+UNPACKED_OTHER_MIN+" ký tự)" : "Ghi chú (không bắt buộc)";
+    $("unpacked-note-hint").hidden = !need;
+  }
+  $("unpacked-reason").addEventListener("change", syncUnpackedNoteRequired);
+  syncUnpackedNoteRequired();
+  /* Cảnh báo nhẹ cho QUẢN LÝ (không chặn): đơn ghi "chưa đóng được" quá 7 ngày mà vẫn chưa thấy
+     trong Tích đơn đi. Không có danh sách "hết hàng còn treo" — hôm nay vẫn hết thì bạn tích lại hôm nay. */
+  function loadUnpackedStaleWarn(){
+    var box = $("unpacked-stale-warn");
+    box.hidden = true;
+    if(!payIsManager(state.staffName)) return;
+    var cut = new Date(); cut.setDate(cut.getDate() - UNPACKED_STALE_DAYS);
+    var since = new Date(); since.setDate(since.getDate() - 60);
+    Promise.all([
+      sbGetAll(T_UNPACKED+"?select=code,scan_date&scan_date=gte."+dateStr(since)+"&scan_date=lt."+dateStr(cut)+"&order=id.asc"),
+      sbGetAll(T_OUTBOUND+"?select=code&scan_date=gte."+dateStr(since)+"&order=id.asc")
+    ]).then(function(r){
+      var sent = {}; r[1].forEach(function(x){ sent[x.code] = 1; });
+      var stale = {}; r[0].forEach(function(x){ if(!sent[x.code]) stale[x.code] = x.scan_date; });
+      var codes = Object.keys(stale);
+      if(!codes.length) return;
+      box.hidden = false;
+      box.innerHTML = '⚠️ <b>'+codes.length+' đơn</b> ghi chưa đóng được quá '+UNPACKED_STALE_DAYS+' ngày mà chưa thấy đi: ' +
+        codes.slice(0,8).map(function(c){ return '<span class="mono">'+escapeHtml(c)+'</span>'; }).join(", ") + (codes.length>8 ? " …" : "");
+    }).catch(function(){});
   }
   $("unpacked-submit").addEventListener("click", submitUnpacked);
   $("unpacked-code").addEventListener("keydown", function(e){ if(e.key === "Enter"){ e.preventDefault(); submitUnpacked(); } });
@@ -2178,6 +2414,7 @@
     if(!state.connected) return;
     var end = todayStr();
     var monthStart = monthRange(thisMonthStr()).start;
+    try { loadCutoffCard(); } catch(e){ console.error(e); } // thẻ Đơn trước 16h
 
     var kpiGrid = $("kpi-grid");
     kpiGrid.querySelectorAll(".val").forEach(function(v){ v.textContent = "—"; });
@@ -2493,6 +2730,12 @@
 
   function loadPayroll(){
     if(!state.connected) return;
+    try { // CÁCH MỚI: từ tháng 12/2026 chỉ hiện lương cách mới; các tháng trước đó vẫn là cách cũ bên dưới
+      var mEra = $("payroll-month").value || thisMonthStr(), era = payNewEra(mEra);
+      $("paynew").style.display = era ? "" : "none"; $("paynew").hidden = false;
+      ["payroll-kpi","payroll-people","payroll-oldhow"].forEach(function(id){ $(id).style.display = era ? "none" : ""; });
+      if(era){ $("payroll-season").textContent = (payIsHighSeason(+mEra.slice(5, 7)) ? "Mùa cao điểm" : "Mùa thấp điểm") + " · quỹ cứng cả kho " + payMoney(payNewFund(payIsHighSeason(+mEra.slice(5, 7)))); loadPayrollNew(); return; }
+    } catch(e){ console.error(e); }
     var monthEl = $("payroll-month");
     if(!monthEl.value) monthEl.value = thisMonthStr();
     var m = monthEl.value;
@@ -2647,6 +2890,407 @@
   }
   $("payroll-month").addEventListener("change", loadPayroll);
   $("payroll-reload").addEventListener("click", loadPayroll);
+
+  /* ================= CÁCH MỚI (tạm thời): LƯƠNG + TỈ LỆ — chốt 17/11/2026 =================
+     Chạy SONG SONG cách cũ, không sửa cách cũ. Muốn bỏ: xóa cả khối này, khối HTML "paynew" trong tab Lương,
+     khối "CÁCH MỚI: từ tháng 12/2026" ở đầu loadPayroll, thẻ "Đơn trước 16h" ở tab Tổng quan (khối loadCutoffCard).
+     Phần tính thuần nằm giữa PAYNEW-CORE-START / PAYNEW-CORE-END (test đọc theo mốc này, đừng đổi mốc). */
+  var T_CUTOFF_ORDERS = "warehouse_cutoff_orders";  // từng đơn trễ, tự xoá sau 40 ngày
+  var T_CUTOFF = "warehouse_cutoff_daily";        // tử/mẫu đơn trễ 16h theo ngày+sàn (chưa có màn nhập, chưa có job tự chạy)
+  var T_SPECIAL = "warehouse_special_days";       // ngày đặc biệt (lễ, shipper nghỉ, sàn lỗi)
+  var T_SPECIAL_LOG = "warehouse_special_days_log";
+  var T_RETDUP = "warehouse_return_dup_log";      // log kiện hoàn quét trùng (không cộng tiền)
+
+
+  /* PAYNEW-CORE-START */
+  // Luật chốt 17/11/2026 (chạy từ tháng 12/2026). Các con số nằm ở đây để sửa một chỗ.
+  var PN_FUND_HARD = 4000000;      // quỹ lương cứng cả kho / tháng MÙA CAO ĐIỂM (tháng 9 đến hết tháng 2); mỗi ngày chia đều cho các bạn đang trong kỳ hôm đó
+  var PN_FUND_HARD_LOW = 1500000;  // mùa thấp điểm (tháng 3 đến 8): giữ như cũ, 1.500.000đ cả kho (chốt 17/11/2026)
+  function payNewFund(high){ return high ? PN_FUND_HARD : PN_FUND_HARD_LOW; }
+  var PN_FUND_16H = 500000;        // quỹ thưởng đơn trước 16h / tháng, chia đều như quỹ cứng
+  var PN_QUALITY_BONUS = 500000;   // thưởng lỗi đơn mức cao nhất mỗi người (dưới 0,5%); 0,5–1% = một nửa; trên 1% = 0
+  var PN_LOYALTY_BONUS = 0;        // thưởng gắn bó: 0 = anh Minh vẫn cộng tay (quy chế cũ: 1.000.000đ mỗi 6 tháng liên tục)
+  var PN_SCALE = 2520;             // bội chung của 1..10: chia tử/mẫu cho k bạn vẫn ra số nguyên
+  var PN_HALF_LAST_JOIN_DAY = 15;  // mốc ngày 15 (chốt 17/11/2026): vào ngày 1 = đủ thưởng; vào ngày 2–15 = thưởng chia 2; vào từ ngày 16 = không có
+  // Hệ số thưởng lỗi theo NGÀY VÀO trong tháng (bạn đã có quét từ tháng trước thì startDay = 1 = đủ).
+  // Bạn nghỉ giữa tháng (kỳ kết thúc trước cuối tháng) cũng chia 2 (chốt 17/11/2026); vào muộn từ ngày 16 thì vẫn 0.
+  function payNewBonusFactor(startDay, endDay, D){
+    var f = startDay <= 1 ? 1 : (startDay <= PN_HALF_LAST_JOIN_DAY ? 0.5 : 0);
+    if(endDay < D && f > 0.5) f = 0.5;
+    return f;
+  }
+  // Thưởng lỗi: dưới 0,5% = 500k; 0,5–1% = 250k; trên 1% = 0 (so sánh bằng số nguyên; đúng 0,5% và đúng 1% đều rơi vào mức 250k)
+  function payNewQuality(loi2, don2){
+    if(don2 === 0) return { amount: 0, note: "chưa có đơn nào để tính tỷ lệ" };
+    if(200 * loi2 < don2) return { amount: PN_QUALITY_BONUS, note: "dưới 0,5%" };
+    if(100 * loi2 <= don2) return { amount: PN_QUALITY_BONUS / 2, note: "từ 0,5% đến 1%" };
+    return { amount: 0, note: "trên 1% — không có thưởng" };
+  }
+  /* o = { D, high, ym:"2026-12", lastDay, isCurrentMonth, special:{ngày:true}, cutoff:{ngày:{mau,tu}},
+           people:[{key,name,startDay,endDay,days:{ngày:true},rieng,chung,hoan,loiR,loiC}] }  (chỉ các bạn có lương) */
+  function payNewCompute(o){
+    var D = o.D, P = o.people, nd = [0], d, FUND = payNewFund(o.high);
+    function dateOf(x){ return o.ym + "-" + (x < 10 ? "0" + x : "" + x); }
+    for(d = 1; d <= D; d++){
+      var cnt = 0;
+      P.forEach(function(p){ if(p.startDay <= d && d <= p.endDay) cnt++; });
+      nd.push(cnt);
+    }
+    P.forEach(function(p){
+      p.cung = 0; p.chuan = 0; p.fund16 = 0;
+      for(d = p.startDay; d <= p.endDay; d++){
+        var n = nd[d];                                         // số bạn đang trong kỳ hôm đó (>= 1 vì chính bạn này đang trong kỳ)
+        p.cung += FUND / D / n;                        // lương cứng trả cố định, không nhân theo ngày công
+        p.fund16 += PN_FUND_16H / D / n;
+        p.chuan += 1 / n;                                      // số ngày công "đáng lẽ" của bạn: 1 bạn = cả tháng, 2 bạn = nửa tháng...
+      }
+      p.chuan = Math.round(p.chuan * 10) / 10;
+      p.nc = Object.keys(p.days).length;                       // ngày công thực tế, chỉ để tham khảo (các bạn tự bù trừ ngoài sổ)
+      p.tienDon = 300 * p.rieng + 150 * p.chung;
+      p.congHoan = 2000 * p.hoan;
+      p.don2 = 2 * p.rieng + p.chung;                          // đơn quy đổi (số nguyên: riêng = 2, chung = 1)
+      p.loi2 = 2 * p.loiR + p.loiC;
+      p.factor = payNewBonusFactor(p.startDay, p.endDay, D);   // vào hoặc nghỉ giữa tháng: thưởng chia 2; vào từ ngày 16: cắt
+      p.quality = payNewQuality(p.loi2, p.don2);
+      p.qualityBase = p.quality.amount;
+      p.quality = { amount: p.qualityBase * p.factor, note: p.quality.note };
+      p.loyalty = PN_LOYALTY_BONUS;
+      p.tuS = 0; p.mauS = 0;
+    });
+    // ---- thưởng đơn trước 16h: tính RIÊNG TỪNG BẠN. Tử/mẫu của mỗi ngày chia cho các bạn có quét hôm đó ----
+    var X = 0, Y = 0, nSpecial = 0;
+    for(d = 1; d <= o.lastDay; d++){
+      var ds = dateOf(d);
+      if(o.special[ds]){ nSpecial++; continue; }               // ngày đặc biệt: bỏ khỏi tử và mẫu của mọi người (vẫn tính ngày công, vẫn chia quỹ)
+      Y++;
+      var cd = o.cutoff[ds];
+      if(!cd){ X++; continue; }
+      var workers = P.filter(function(p){ return p.days[ds]; });
+      if(workers.length){                                      // k bạn có quét thì mỗi bạn 1/k (chỉ 1 bạn thì bạn đó nhận hết)
+        workers.forEach(function(p){ p.tuS += cd.tu * PN_SCALE / workers.length; p.mauS += cd.mau * PN_SCALE / workers.length; });
+      } else {                                                 // ngày thường không bạn nào làm: toàn bộ đơn đến hạn tính trễ (tử = mẫu), chia đều cho các bạn trong kỳ
+        var dayD = d;
+        var inPeriod = P.filter(function(p){ return p.startDay <= dayD && dayD <= p.endDay; });
+        inPeriod.forEach(function(p){ p.tuS += cd.mau * PN_SCALE / inPeriod.length; p.mauS += cd.mau * PN_SCALE / inPeriod.length; });
+      }
+    }
+    var h16state = (Y === 0 || X === 0) ? "du" : (X === Y ? "cho" : "thieu");
+    P.forEach(function(p){
+      var pass = (p.mauS === 0) || (10 * p.tuS < p.mauS);      // dưới 10% mới trả; đúng 10% thì không; mẫu = 0 coi như đạt
+      p.h16 = { state: h16state, X: X, Y: Y, tu: p.tuS / PN_SCALE, mau: p.mauS / PN_SCALE, rate: p.mauS ? p.tuS / p.mauS : null, pass: pass };
+      p.bonus16 = (h16state === "du" && !o.isCurrentMonth && pass) ? p.fund16 : 0;
+      p.total = Math.round(p.cung + p.tienDon + p.congHoan + p.quality.amount + p.bonus16 + p.loyalty);   // làm tròn đồng 1 lần ở cuối
+    });
+    return { people: P, nd: nd, X: X, Y: Y, nSpecial: nSpecial, h16state: h16state, fund: FUND, high: !!o.high };
+  }
+  /* PAYNEW-CORE-END */
+
+  // Tra ngược mã lỗi -> dòng quét đơn đi (staff + co_staff). Cùng cách tra như fetchPackerByCodes (mã vận đơn, rồi bắc cầu qua Sapo
+  // cho mã đơn hàng) nhưng trả cả người đóng cùng. Không sửa hàm cũ.
+  function fetchPackerInfoByCodes(codes){
+    var uniq = [], seen = {};
+    codes.forEach(function(c){
+      var v = String(c == null ? "" : c).trim(), k = v.toLowerCase();
+      if(v && !seen[k]){ seen[k] = 1; uniq.push(v); }
+    });
+    if(!uniq.length) return Promise.resolve({});
+    function chunks(arr){ var out = []; for(var i = 0; i < arr.length; i += ERRSTAFF_CHUNK) out.push(arr.slice(i, i + ERRSTAFF_CHUNK)); return out; }
+    function lookup(list){
+      return Promise.all(chunks(list).map(function(ch){
+        return sbGet(T_OUTBOUND + "?code=in.(" + ch.map(encodeURIComponent).join(",") + ")&select=code,staff,co_staff");
+      })).then(function(all){ var rows = []; all.forEach(function(a){ rows = rows.concat(a || []); }); return rows; });
+    }
+    function good(r){ var s = String(r.staff || "").trim(); return s && !looksLikeTrackingCode(s); }
+    return lookup(uniq).then(function(rows){
+      var map = {};
+      rows.forEach(function(r){
+        var k = String(r.code || "").trim().toLowerCase();
+        if(k && good(r) && !map[k]) map[k] = { staff: String(r.staff).trim(), co: r.co_staff ? String(r.co_staff).trim() : null };
+      });
+      var missing = uniq.filter(function(c){ return !map[c.toLowerCase()]; });
+      if(!missing.length) return map;
+      return Promise.all(chunks(missing).map(function(ch){
+        return sbGet(T_RETFEED + "?order_name=in.(" + ch.map(encodeURIComponent).join(",") + ")&select=order_name,outbound_tracking,return_tracking");
+      })).then(function(feeds){
+        var via = {};
+        feeds.forEach(function(rows2){
+          (rows2 || []).forEach(function(r){
+            var ok = String(r.order_name || "").trim().toLowerCase();
+            if(!ok) return;
+            String(r.outbound_tracking || "").split("+").concat([r.return_tracking]).forEach(function(t){
+              var tk = String(t || "").trim().toLowerCase();
+              if(tk && !via[tk]) via[tk] = ok;
+            });
+          });
+        });
+        var trackings = Object.keys(via);
+        if(!trackings.length) return map;
+        return lookup(trackings).then(function(rows3){
+          rows3.forEach(function(r){
+            var ok = via[String(r.code || "").trim().toLowerCase()];
+            if(ok && good(r) && !map[ok]) map[ok] = { staff: String(r.staff).trim(), co: r.co_staff ? String(r.co_staff).trim() : null };
+          });
+          return map;
+        });
+      });
+    });
+  }
+
+  var PN_START_MONTH = "2026-12";   // lương cách mới chạy từ tháng này; các tháng trước vẫn hiện cách cũ
+  function payNewEra(m){ return m >= PN_START_MONTH; }
+  var payNewLast = null;
+  // Gom số liệu 1 tháng cho lương cách mới + thẻ "Đơn trước 16h" (dùng chung 1 chỗ tính để 2 nơi không lệch số).
+  // withErrors = false: bỏ bước tra lỗi Kho vận (nặng) — thẻ ở Tổng quan chỉ cần tử/mẫu theo từng bạn.
+  // includeToday = true: tính cả ngày hôm nay (thẻ Tổng quan); lương thì chỉ tới hôm qua.
+  function payNewBuild(m, withErrors, includeToday){
+    var range = monthRange(m), parts = m.split("-"), year = +parts[0], mon = +parts[1];
+    var D = new Date(year, mon, 0).getDate();
+    var isCurrentMonth = (m === thisMonthStr()), isFutureMonth = (m > thisMonthStr());
+    return Promise.all([
+      sbGetAll(T_OUTBOUND+"?scan_date=gte."+range.start+"&scan_date=lte."+range.end+"&select=code,staff,co_staff,scan_date&order=id.asc"),
+      sbGetAll(T_RETURNS+"?scan_date=gte."+range.start+"&scan_date=lte."+range.end+"&select=staff,scan_date,return_type&order=id.asc"),
+      withErrors ? sbGetAll(T_ERRLOG+"?created_at=gte."+range.start+"T00:00:00&created_at=lte."+range.end+"T23:59:59&select=code,error_type&order=id.asc") : Promise.resolve([]),
+      payScannedNames(payShiftMonth(year, mon, -1)),
+      (isCurrentMonth || isFutureMonth) ? Promise.resolve({}) : payScannedNames(payShiftMonth(year, mon, 1)),
+      sbGetAll(T_SPECIAL+"?ngay=gte."+range.start+"&ngay=lte."+range.end+"&select=ngay,loai,ghi_chu&order=ngay.asc").catch(function(){ return null; }),
+      sbGetAll(T_CUTOFF+"?ngay=gte."+range.start+"&ngay=lte."+range.end+"&select=ngay,san,mau_so,tu_so,trang_thai&order=id.asc").catch(function(){ return null; })
+    ]).then(function(res){
+      var khoVan = (res[2] || []).filter(function(e){ return e.error_type === "kho_van"; });
+      if(!withErrors) return { res: res, khoVan: khoVan, info: {} };
+      return fetchPackerInfoByCodes(khoVan.map(function(e){ return e.code; })).then(function(info){ return { res: res, khoVan: khoVan, info: info }; });
+    }).then(function(d){
+      var outRows = d.res[0] || [], retRows = d.res[1] || [], special = d.res[5], cutRows = d.res[6];
+      var canon = {};
+      loadStaffRoster().forEach(function(n){ canon[n.toLowerCase()] = n; });
+      // Kỳ của từng bạn: dùng lại payCompute, người đóng cùng cũng tính là có quét hôm đó.
+      var outExp = outRows.slice();
+      outRows.forEach(function(r){ if(r.co_staff) outExp.push({ staff: r.co_staff, scan_date: r.scan_date }); });
+      var calc = payCompute({
+        outRows: outExp, retRows: retRows, daysInMonth: D, isCurrentMonth: isCurrentMonth,
+        prevNames: d.res[3] || {}, nextNames: d.res[4] || {}, base: 0, fund: 0, perOrder: 0, perReturn: 0,
+        keyFn: payStaffKey, isManagerFn: payIsManager, canon: canon
+      });
+      var allByKey = {};
+      calc.list.forEach(function(p){ allByKey[p.key] = p; });
+      var people = calc.list.filter(function(p){ return p.isReal && p.firstDay; });
+      var byKey = {};
+      people.forEach(function(p){ p.rieng = 0; p.chung = 0; p.hoan = 0; p.loiR = 0; p.loiC = 0; byKey[p.key] = p; });
+      var K = function(raw){ return payStaffKey(raw).toLowerCase(); };
+      var nameOf = function(raw){ var k = K(raw); return allByKey[k] ? allByKey[k].name : String(raw).trim(); };
+      var pairs = {};
+      outRows.forEach(function(r){
+        var s = K(r.staff), c = r.co_staff ? K(r.co_staff) : null;
+        if(c){
+          if(byKey[s]) byKey[s].chung++;
+          if(byKey[c]) byKey[c].chung++;
+          var pk = [nameOf(r.staff), nameOf(r.co_staff)].sort().join(" + ");
+          pairs[pk] = (pairs[pk] || 0) + 1;
+        } else if(byKey[s]){ byKey[s].rieng++; }
+      });
+      retRows.forEach(function(r){ var p = byKey[K(r.staff)]; if(p) p.hoan++; });   // mọi kiện hoàn, kể cả loại C (huỷ chưa đi)
+      var untraced = 0;
+      d.khoVan.forEach(function(e){
+        var f = d.info[String(e.code || "").trim().toLowerCase()];
+        if(!f){ untraced++; return; }
+        var s = K(f.staff), c = f.co ? K(f.co) : null;
+        if(c){ if(byKey[s]) byKey[s].loiC++; if(byKey[c]) byKey[c].loiC++; }   // đơn chung: mỗi người 0,5 lỗi (phần quản lý bỏ)
+        else if(byKey[s]) byKey[s].loiR++;
+      });
+      var specialMap = {}, cutoffMap = {}, byDayCut = {};
+      (special || []).forEach(function(s){ specialMap[s.ngay] = s; });
+      (cutRows || []).forEach(function(r){
+        if(r.trang_thai === "dac_biet"){ specialMap[r.ngay] = specialMap[r.ngay] || { ngay: r.ngay, loai: "le", ghi_chu: "đánh dấu ở bảng 16h" }; return; }
+        var b = byDayCut[r.ngay] || (byDayCut[r.ngay] = { mau: 0, tu: 0, ok: 0, n: 0 });
+        b.n++; if(r.trang_thai === "ok"){ b.ok++; b.mau += +r.mau_so || 0; b.tu += +r.tu_so || 0; }
+      });
+      Object.keys(byDayCut).forEach(function(k){ var b = byDayCut[k]; if(b.ok === b.n) cutoffMap[k] = { mau: b.mau, tu: b.tu }; });   // chỉ nhận ngày mà mọi sàn đều "ok"
+      var todayN = new Date().getDate();
+      var lastDay = isCurrentMonth ? Math.max(0, includeToday ? todayN : todayN - 1) : (isFutureMonth ? 0 : D);
+      var specialFlags = {}; Object.keys(specialMap).forEach(function(k){ specialFlags[k] = true; });
+      var out = payNewCompute({
+        D: D, high: payIsHighSeason(mon), ym: m, lastDay: lastDay, isCurrentMonth: isCurrentMonth,
+        special: specialFlags, cutoff: cutoffMap, people: people
+      });
+      return { m: m, mon: mon, D: D, out: out, pairs: pairs, untraced: untraced, isCurrentMonth: isCurrentMonth, lastDay: lastDay,
+               cutoffMap: cutoffMap, specialFlags: specialFlags,
+               specialRows: Object.keys(specialMap).sort().map(function(k){ return specialMap[k]; }),
+               tablesMissing: (special === null || cutRows === null) };
+    });
+  }
+  function loadPayrollNew(){
+    if(!state.connected) return;
+    var monthEl = $("payroll-month");
+    if(!monthEl.value) monthEl.value = thisMonthStr();
+    var m = monthEl.value;
+    $("paynew-people").innerHTML = '<div class="empty-state">Đang tính…</div>';
+    $("paynew-kpi").innerHTML = ""; $("paynew-rates").innerHTML = "";
+    payNewBuild(m, true, false).then(function(S){
+      payNewLast = S;
+      payNewRender(S);
+    }).catch(function(err){
+      console.error("payroll-new load error", err);
+      $("paynew-people").innerHTML = '<div class="card"><div class="empty-state">Không tính được lương: '+escapeHtml(err.message || err)+'</div></div>';
+    });
+  }
+  function payNewPct(x){ return x === null ? "—" : (x * 100).toFixed(2).replace(".", ",") + "%"; }
+  function payNewRender(S){
+    var out = S.out, list = out.people;
+    if(!list.length){
+      $("paynew-people").innerHTML = '<div class="card"><div class="empty-state">Tháng này chưa có bạn nào có lương để tính.</div></div>';
+      $("paynew-kpi").innerHTML = ""; $("paynew-rates").innerHTML = ""; payNewRenderSpecial(S);
+      return;
+    }
+    var sumNew = 0;
+    list.forEach(function(p){ sumNew += p.total; });
+    var h16 = out.h16state, nPass = list.filter(function(p){ return p.h16.pass; }).length;
+    $("paynew-kpi").innerHTML =
+      '<div class="kpi"><span class="lbl">Tổng lương tháng' + (S.isCurrentMonth ? " (tạm tính)" : "") + '</span><span class="val tabular">'+payMoney(sumNew)+'</span>' +
+        '<span class="foot">'+list.length+' bạn · dùng cho P&amp;L</span></div>' +
+      '<div class="kpi"><span class="lbl">Thưởng đơn trước 16h</span><span class="val tabular '+(h16 === "du" ? (nPass === list.length ? "good" : "warn") : "warn")+'">' +
+        (h16 === "cho" ? "chờ dữ liệu" : (h16 === "thieu" ? "thiếu "+out.X+"/"+out.Y+" ngày" : (S.isCurrentMonth ? "chốt cuối tháng" : nPass+"/"+list.length+" bạn đạt"))) + '</span>' +
+        '<span class="foot">' + (S.tablesMissing ? "chưa tạo bảng 16h/ngày đặc biệt (chạy file SQL mục 3-4)" :
+          "tính riêng từng bạn, trễ dưới 10% mới thưởng" + (out.nSpecial ? " · "+out.nSpecial+" ngày đặc biệt bỏ ra" : "")) + '</span></div>' +
+      (S.untraced ? '<div class="kpi"><span class="lbl">Lỗi chưa tra được người</span><span class="val tabular warn">'+S.untraced+'</span><span class="foot">không trừ thưởng của ai</span></div>' : '');
+
+    $("paynew-people").innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:12px;">' + list.map(function(p){
+      var row = function(label, hint, value){
+        return '<div class="pay-row"><span class="pay-label">'+label+(hint ? '<span class="sub" style="display:block;margin:0;">'+hint+'</span>' : '')+'</span><span class="pay-value tabular">'+value+'</span></div>';
+      };
+      var h = p.h16, h16Val, h16Hint;
+      if(h.state === "cho"){ h16Val = "chưa tính"; h16Hint = "chờ dữ liệu"; }
+      else if(h.state === "thieu"){ h16Val = "chưa tính"; h16Hint = "thiếu "+h.X+"/"+h.Y+" ngày dữ liệu"; }
+      else if(S.isCurrentMonth){ h16Val = "chốt cuối tháng"; h16Hint = "trễ tạm tính " + payNewPct(h.rate); }
+      else { h16Val = payMoney(p.bonus16); h16Hint = "trễ " + payNewPct(h.rate) + (h.pass ? " — dưới 10%" : " — từ 10% trở lên"); }
+      var whole = p.startDay === 1 && p.endDay === S.D;
+      var diffNote = p.nc > p.chuan ? "làm "+p.nc+" ngày, hơn chuẩn "+p.chuan : (p.nc < p.chuan ? "làm "+p.nc+" ngày, ít hơn chuẩn "+p.chuan : "làm đủ chuẩn "+p.chuan+" ngày");
+      return '<div class="card"><div class="card-head" style="align-items:flex-start;"><div><h2>'+escapeHtml(p.name)+'</h2>' +
+          '<span class="sub" style="margin:0;">'+(whole ? "Cả tháng" : "Kỳ "+p.startDay+"–"+p.endDay+"/"+pad2(S.mon))+' · '+p.nc+' ngày công</span></div>' +
+          '<div class="tabular" style="font-size:22px;font-weight:600;white-space:nowrap;">'+payMoney(p.total)+'</div></div>' +
+        row("Lương cứng", diffNote, payMoney(p.cung)) +
+        row("Tiền đơn và hoàn", p.rieng+" riêng, "+p.chung+" chung, "+p.hoan+" hoàn", payMoney(p.tienDon + p.congHoan)) +
+        row("Thưởng chất lượng", "lỗi "+payNewPct(p.don2 ? p.loi2 / p.don2 : null)+(p.factor === 0.5 ? " · vào hoặc nghỉ giữa tháng: chia 2" : (p.factor === 0 ? " · vào muộn: không có thưởng" : "")), payMoney(p.quality.amount)) +
+        row("Thưởng đơn trước 16h", h16Hint, h16Val) +
+        row("Thưởng gắn bó", p.loyalty ? "" : "chưa gồm trong tổng", p.loyalty ? payMoney(p.loyalty) : "anh cộng tay") +
+        '<div class="pn-dt hint" hidden style="margin:8px 0 0;line-height:1.7;">' +
+          '<b>Lương cứng:</b> quỹ '+payMoney(out.fund)+(out.high ? ' (cao điểm)' : ' (thấp điểm)')+' ÷ '+S.D+' ngày, mỗi ngày chia đều cho các bạn đang trong kỳ. Trả cố định, không trừ theo ngày công; bạn làm hộ nhau thì tự bù trừ ngoài sổ.<br>' +
+          '<b>Tiền đơn:</b> '+p.rieng+' × 300đ + '+p.chung+' × 150đ = '+payMoney(p.tienDon)+'. <b>Hoàn:</b> '+p.hoan+' kiện × 2.000đ = '+payMoney(p.congHoan)+'.<br>' +
+          '<b>Chất lượng:</b> lỗi quy đổi '+(p.loi2/2)+' trên '+(p.don2/2)+' đơn quy đổi ('+p.quality.note+', mức '+payMoney(p.qualityBase)+(p.factor === 1 ? '' : ' × '+p.factor+' vì vào hoặc nghỉ giữa tháng')+').<br>' +
+          '<b>16h:</b> quỹ '+payMoney(PN_FUND_16H)+' chia đều theo ngày, phần của bạn '+payMoney(p.fund16)+'. Tử/mẫu tính riêng cho bạn: '+(+p.h16.tu.toFixed(2))+'/'+(+p.h16.mau.toFixed(2))+' đơn.</div>' +
+        '<button type="button" class="btn ghost small" data-pn-toggle style="margin-top:8px;">Xem cách tính chi tiết</button>' +
+      '</div>';
+    }).join("") + '</div>';
+
+    var pairKeys = Object.keys(S.pairs).sort();
+    $("paynew-rates").innerHTML =
+      '<div class="twrap"><table><thead><tr><th>Bạn</th><th>Đơn riêng</th><th>Đơn chung</th><th>Đơn quy đổi</th><th>Lỗi trọng số</th><th>Tỷ lệ lỗi</th><th>Thưởng chất lượng</th><th>Trễ 16h (tử/mẫu)</th><th>Tỷ lệ trễ</th></tr></thead><tbody>' +
+      list.map(function(p){
+        return '<tr><td>'+escapeHtml(p.name)+'</td><td class="tabular">'+p.rieng+'</td><td class="tabular">'+p.chung+'</td><td class="tabular">'+(p.don2/2)+'</td><td class="tabular">'+(p.loi2/2)+'</td><td class="tabular">'+payNewPct(p.don2 ? p.loi2 / p.don2 : null)+'</td><td class="tabular">'+payMoney(p.quality.amount)+'</td><td class="tabular">'+(p.h16.state === "du" ? (+p.h16.tu.toFixed(2))+"/"+(+p.h16.mau.toFixed(2)) : (p.h16.state === "cho" ? "chờ dữ liệu" : "thiếu "+p.h16.X+"/"+p.h16.Y+" ngày"))+'</td><td class="tabular">'+(p.h16.state === "du" ? payNewPct(p.h16.rate) : "—")+'</td></tr>';
+      }).join("") + '</tbody></table></div>' +
+      '<p class="sub" style="margin:10px 0 0;"><b>Đơn chung theo cặp:</b> ' + (pairKeys.length ? pairKeys.map(function(k){ return escapeHtml(k)+": "+S.pairs[k]; }).join(" · ") : "chưa có") + '</p>';
+    payNewRenderSpecial(S);
+  }
+  $("paynew-people").addEventListener("click", function(e){
+    var b = e.target.closest("[data-pn-toggle]");
+    if(!b) return;
+    var dt = b.parentNode.querySelector(".pn-dt");
+    dt.hidden = !dt.hidden;
+    b.textContent = dt.hidden ? "Xem cách tính chi tiết" : "Ẩn cách tính";
+  });
+  function payNewRenderSpecial(S){
+    var isMgr = false;
+    try { isMgr = payIsManager(state.staffName); } catch(e){}
+    $("paynew-special").hidden = !isMgr;
+    if(!isMgr) return;
+    if(!$("sd-date").value) $("sd-date").value = todayStr();
+    var LBL = { le: "Ngày lễ", shipper_nghi: "Shipper nghỉ", san_loi: "Sàn lỗi" };
+    $("sd-list").innerHTML = S.specialRows.length
+      ? '<div class="twrap"><table><thead><tr><th>Ngày</th><th>Loại</th><th>Ghi chú</th></tr></thead><tbody>' + S.specialRows.map(function(r){
+          return '<tr><td>'+fmtDate(r.ngay)+'</td><td>'+escapeHtml(LBL[r.loai] || r.loai)+'</td><td>'+escapeHtml(r.ghi_chu || "—")+'</td></tr>'; }).join("") + '</tbody></table></div>'
+      : '<p class="hint">Tháng này chưa có ngày đặc biệt nào.</p>';
+  }
+  // Chỉ sửa được ngày trong tháng hiện tại; tháng trước chỉ tới hết ngày 5.
+  function payNewSpecialEditable(dateIso){
+    var ym = dateIso.slice(0, 7), now = new Date();
+    if(ym === thisMonthStr()) return true;
+    return ym === payShiftMonth(now.getFullYear(), now.getMonth() + 1, -1) && now.getDate() <= 5;
+  }
+  $("sd-save").addEventListener("click", function(){
+    var date = $("sd-date").value, on = $("sd-on").checked, loai = $("sd-type").value, note = $("sd-note").value.trim();
+    if(!date){ showToast("sd-toast","err","Chọn ngày."); return; }
+    if(!payNewSpecialEditable(date)){ showToast("sd-toast","err","Chỉ sửa được ngày trong tháng hiện tại (tháng trước chỉ tới ngày 5)."); return; }
+    var btn = $("sd-save"); btn.disabled = true;
+    sbGet(T_SPECIAL+"?ngay=eq."+date+"&select=ngay").then(function(rows){
+      var existed = rows.length > 0, body = { ngay: date, loai: loai, ghi_chu: note || null, nguoi_dat: state.staffName || null };
+      var job;
+      if(on) job = existed ? patchWhere(T_SPECIAL, "ngay=eq."+date, body) : insertRow(T_SPECIAL, body);
+      else job = existed ? fetch(sbUrl(T_SPECIAL+"?ngay=eq."+date), { method: "DELETE", headers: sbHeaders() }).then(function(r){ if(!r.ok) throw new Error("HTTP "+r.status); }) : Promise.resolve();
+      return job.then(function(){
+        return insertRow(T_SPECIAL_LOG, { ngay: date, action: on ? (existed ? "edit" : "set") : "unset", loai: on ? loai : null, ghi_chu: note || null, by_staff: state.staffName || null });
+      });
+    }).then(function(){
+      showToast("sd-toast","ok", on ? "Đã đánh dấu "+fmtDate(date)+" là ngày đặc biệt." : "Đã bỏ đánh dấu "+fmtDate(date)+".");
+      loadPayrollNew();
+    }).catch(function(err){ console.error(err); showToast("sd-toast","err","Lỗi: "+(err.message || err)); })
+      .then(function(){ btn.disabled = false; });
+  });
+  /* ================= HẾT KHỐI CÁCH MỚI: LƯƠNG + TỈ LỆ ================= */
+
+  /* ================= Thẻ "Đơn trước 16h" ở tab Tổng quan (chốt 17/11/2026) =================
+     Số liệu do job 20:00 trên PC ghi (tools/sync_cutoff_daily.py): warehouse_cutoff_daily (mẫu/tử mỗi ngày, giữ mãi)
+     và warehouse_cutoff_orders (từng đơn trễ, tự xoá sau 40 ngày). Đơn đến hạn của ngày D = đơn tạo từ 16:00 hôm
+     trước đến 16:00 ngày D; trễ = hãng vận chuyển chưa lấy lúc 20:00. */
+  var CUT_KEEP_DAYS = 40;
+  var cutView = "";           // "" | "y" (hôm qua) | "30" (30 ngày qua)
+  function cutShift(dateIso, delta){
+    var p = dateIso.split("-"), d = new Date(+p[0], +p[1] - 1, +p[2] + delta);
+    return dateStr(d);
+  }
+  function loadCutoffCard(){
+    if(!state.connected) return;
+    payNewBuild(thisMonthStr(), false, true).then(function(S){ renderCutoffPeople(S); }).catch(function(err){
+      console.error(err);
+      $("cut-people").innerHTML = "";
+      $("cut-note").textContent = "Chưa đọc được số liệu (chạy file SQL mục 3-4 chưa?).";
+    });
+    if(cutView) loadCutoffDetail();
+  }
+  function renderCutoffPeople(S){
+    var out = S.out, list = out.people;
+    var Y = out.Y, have = out.Y - out.X;
+    $("cut-note").textContent = Y === 0 ? "Tháng này chưa có ngày nào để tính."
+      : "Tỷ lệ đơn trễ của từng bạn, cộng dồn từ đầu tháng đến nay (đã có số liệu " + have + "/" + Y + " ngày). Dưới 10% là đạt thưởng 16h. Trễ = hãng vận chuyển chưa lấy lúc 20:00.";
+    $("cut-people").innerHTML = list.map(function(p){
+      var h = p.h16, rate = h.rate;
+      var cls = rate === null ? "" : (h.pass ? "good" : "crit");
+      var pct = rate === null ? "—" : (rate * 100).toFixed(1).replace(".", ",") + "%";
+      var foot = h.mau > 0 ? (Math.round(h.tu * 10) / 10 + " đơn trễ / " + Math.round(h.mau * 10) / 10 + " đơn đến hạn · " + (h.pass ? "đang đạt" : "đang không đạt")) : "chưa có số liệu";
+      return '<div class="kpi"><span class="lbl">' + escapeHtml(p.name) + '</span><span class="val tabular ' + cls + '">' + pct + '</span><span class="foot">' + foot + '</span></div>';
+    }).join("") || '<div class="empty-state">Chưa có bạn nào có quét trong tháng.</div>';
+  }
+  function loadCutoffDetail(){
+    var det = $("cut-detail"), PL = { tiktok: "TikTok", shopee: "Shopee" };
+    var today = todayStr(), from = cutView === "y" ? cutShift(today, -1) : cutShift(today, -30), to = cutView === "y" ? cutShift(today, -1) : today;
+    det.hidden = false;
+    det.innerHTML = '<p class="hint">Đang tải…</p>';
+    sbGetAll(T_CUTOFF_ORDERS + "?ngay=gte." + from + "&ngay=lte." + to + "&select=ngay,san,ma_don,ma_van_don,tao_luc,tinh_trang&order=ngay.desc,tao_luc.asc").then(function(rows){
+      var title = cutView === "y" ? "Đơn trễ hôm qua (" + fmtDate(from) + ")" : "Đơn trễ 30 ngày qua";
+      if(!rows.length){
+        det.innerHTML = '<p class="hint"><b>' + title + ':</b> không có đơn nào' + (cutView === "y" ? " (hoặc job 20:00 chưa ghi ngày này)." : ".") + '</p>';
+        return;
+      }
+      det.innerHTML = '<p class="hint" style="margin:0 0 6px;"><b>' + title + ':</b> ' + rows.length + ' đơn</p>' +
+        '<div class="twrap"><table><thead><tr><th>Mã đơn</th><th>Ngày</th><th>Sàn</th><th>Tình trạng</th><th>Mã vận đơn</th></tr></thead><tbody>' +
+        rows.map(function(o){
+          return '<tr><td class="mono">' + escapeHtml(o.ma_don) + '</td><td class="tabular">' + fmtDate(o.ngay).slice(0, 5) + '</td><td>' + escapeHtml(PL[o.san] || o.san) + '</td><td>' + escapeHtml(o.tinh_trang || "—") + '</td><td class="mono">' + escapeHtml(o.ma_van_don || "—") + '</td></tr>';
+        }).join("") + '</tbody></table></div><p class="hint" style="margin:8px 0 0;">Chi tiết đơn lưu ' + CUT_KEEP_DAYS + ' ngày rồi tự xoá. Đơn trễ tính chung cả kho, rồi chia cho các bạn có quét hôm đó.</p>';
+    }).catch(function(err){ console.error(err); det.innerHTML = '<p class="hint">Không đọc được danh sách đơn trễ.</p>'; });
+  }
+  function cutToggle(v){
+    if(cutView === v){ cutView = ""; $("cut-detail").hidden = true; return; }
+    cutView = v; loadCutoffDetail();
+  }
+  $("cut-yday").addEventListener("click", function(){ cutToggle("y"); });
+  $("cut-30").addEventListener("click", function(){ cutToggle("30"); });
 
   function runManualReconcile(){
     var btn = $("dash-reconcile-btn");
