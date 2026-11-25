@@ -201,6 +201,24 @@
   .retalert-item .days{ color:#c62a2f; font-weight:600; }
   .retalert-item .meta{ color:var(--ink-2); font-size:12px; }
   .retalert-transit{ margin:6px 0 0; font-size:12px; color:var(--ink-2); }
+  /* CẢNH BÁO ĐƠN TRỄ (25/11/2026) */
+  .late-total{ display:flex; align-items:center; gap:8px; font-size:14.5px; font-weight:700; color:#c62a2f; margin:0; }
+  .late-updated{ font-size:11.5px; color:var(--ink-3); margin:2px 0 8px; }
+  .late-updated.stale{ color:#c62a2f; font-weight:600; }
+  .late-group{ background:var(--surface); border:1px solid var(--border-soft); border-radius:10px; padding:10px 12px; margin-top:8px; }
+  .late-group-head{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .late-group-head b{ font-size:13.5px; }
+  .late-group-head .cnt{ font-size:11.5px; font-weight:700; padding:2px 9px; border-radius:20px; background:#fde2e2; color:#a32d2d; white-space:nowrap; }
+  .late-group.packed .late-group-head .cnt{ background:var(--warn-soft); color:var(--warn-ink); }
+  .late-group-hint{ font-size:12px; color:var(--ink-2); margin:2px 0 6px; }
+  .late-row{ display:flex; justify-content:space-between; align-items:center; gap:10px; padding:6px 0; border-top:1px dashed var(--border-soft); }
+  .late-row .code{ font-family:ui-monospace,Menlo,monospace; font-weight:700; font-size:13px; cursor:pointer; word-break:break-all; }
+  .late-row .meta{ font-size:11.5px; color:var(--ink-3); }
+  .late-row .days{ font-size:12.5px; font-weight:700; color:#c62a2f; white-space:nowrap; }
+  .late-group.packed .late-row .days{ color:var(--warn-ink); }
+  .late-sum{ display:flex; justify-content:space-between; align-items:center; gap:10px; flex-wrap:wrap; padding-top:6px; border-top:1px dashed var(--border-soft); font-size:12.5px; color:var(--ink-2); }
+  .late-acks{ font-size:11.5px; color:var(--ink-3); margin:8px 0 0; }
+  .late-gate-box .btn{ margin-top:14px; }
   .notice-board-head{ display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
   .notice-board-head h2{ font-size:14px; margin:0; display:flex; align-items:center; gap:6px; }
   .notice-empty{ font-size:12.5px; color:var(--ink-2); margin:8px 0 0; }
@@ -406,6 +424,22 @@
   </div>
 
   <p id="conn-msg"></p>
+
+  <!-- CẢNH BÁO ĐƠN TRỄ (25/11/2026): đơn đã có mã vận đơn mà hãng chưa lấy lúc 20:00 — hiện ở mọi tab -->
+  <div class="notice-board retalert-board" id="late-board" hidden>
+    <p class="late-total">⚠️ <span id="late-total-text"></span></p>
+    <p class="late-updated" id="late-updated"></p>
+    <div id="late-groups"></div>
+    <p class="late-acks" id="late-acks" hidden></p>
+  </div>
+  <div class="notice-popup-overlay" id="late-gate" hidden>
+    <div class="notice-popup-box late-gate-box">
+      <h2>⚠️ Đơn trễ hạn cần xử lý trước</h2>
+      <p class="notice-popup-sub" id="late-gate-sub"></p>
+      <div id="late-gate-groups"></div>
+      <button type="button" class="btn" id="late-gate-ok"></button>
+    </div>
+  </div>
 
   <div class="notice-board retalert-board" id="retalert-board" hidden>
     <div class="notice-board-head">
@@ -861,6 +895,8 @@
   var T_NOTICES = "warehouse_notices"; // "Việc cần làm" — banner nhắc việc, hiện ở mọi tab
   var T_RETFEED = "platform_returns_feed"; // phiếu trả hàng đồng bộ từ Sapo (script sync_returns_feed.py ghi vào)
   var T_UNPACKED = "warehouse_unpacked_log"; // đơn đã in nhưng chưa đóng được trong ngày (thiếu hàng, lỗi hàng…)
+  var T_LATE = "warehouse_late_orders"; // CẢNH BÁO ĐƠN TRỄ: job 20:00 trên PC (tools/sync_late_orders.py) ghi vào
+  var T_LATE_ACK = "warehouse_late_ack"; // ai đã xem danh sách đơn trễ đầu ca
 
   var PLATFORMS = { tiktok: "TikTok Shop", shopee: "Shopee" };
   var PLATFORM_TO_SANPHAM = { tiktok: "TikTok", shopee: "Shopee" }; // giá trị field `sanPham` trong hoanVeKhoDetail
@@ -1273,6 +1309,7 @@
     renderStaffChips();
     try { copackRefreshUI(); } catch(e){} // CÁCH MỚI: đóng chung
     if(name) closeStaffGate();
+    if(name){ try { lateCheckGate(); } catch(e){} } // CẢNH BÁO ĐƠN TRỄ: chọn tên xong thì hiện màn đơn trễ nếu chưa xem hôm nay
   }
   var staffEditMode = false;   // bật bằng nút ✎ — hiện dấu × để xoá tên thêm nhầm
   function renderStaffChips(){
@@ -1481,6 +1518,157 @@
       alert("Ẩn thất bại, thử lại. (Nếu lỗi nhắc cột resolved_at: bảng chưa thêm cột, báo chủ shop chạy SQL bổ sung.)");
     });
   });
+
+  /* ---------------- CẢNH BÁO ĐƠN TRỄ (chốt 25/11/2026) ----------------
+     Nguồn: bảng warehouse_late_orders, job 20:00 trên PC ghi lại toàn bộ mỗi tối = đơn ĐÃ CÓ MÃ VẬN ĐƠN
+     (TikTok "Chờ lấy hàng" / Shopee "Đã xử lý") mà hãng chưa lấy. 2 nhóm (chủ shop chốt):
+       - da_tich=false "Đã in phiếu, chưa đóng": phiếu còn trong kho. Bạn kho tích đơn đi là app BỎ NGAY
+         khỏi cảnh báo (so với Tích đơn đi mỗi lần tải), không chờ job.
+       - da_tich=true "Đã đóng, hãng chưa lấy": kiện bỏ sót trong kho. Giữ tới lần quét 20:00 sau.
+     Nhóm <= LATE_SHOW_MAX đơn hiện thẳng mã vận đơn; nhiều hơn thì thu gọn sau nút "Xem".
+     Đầu ca: mỗi người mỗi ngày phải bấm xác nhận đã xem (màn chặn) — ghi vào warehouse_late_ack.
+     Bảng chưa tạo / lỗi mạng -> ẩn cả khối, không chặn ai. */
+  var LATE_SHOW_MAX = 3;
+  var LATE_STALE_HOURS = 28; // quá 28 giờ chưa có lần quét mới = job 20:00 hôm qua không chạy
+  var LATE_ACK_KEY = "kho_late_ack"; // "yyyy-mm-dd|tên" đã xác nhận trên máy này
+  var LATE_GROUPS = [
+    { key:"unpacked", cls:"", name:"Đã in phiếu, chưa đóng", hint:"Phiếu còn trong kho. Tìm phiếu và đóng ngay — tích đơn đi là tự hết." },
+    { key:"packed", cls:"packed", name:"Đã đóng, hãng chưa lấy", hint:"Kiện còn sót trong kho. Tìm kiện và giao shipper." }
+  ];
+  var lateState = { items:[], open:{}, ackChecked:null, acked:false };
+  function lateInList(codes){ return "in.(" + codes.map(function(c){ return '"' + c + '"'; }).join(",") + ")"; }
+  function lateDays(han){
+    var t = new Date(todayStr() + "T00:00:00").getTime();
+    return Math.max(0, Math.round((t - new Date(han + "T00:00:00").getTime()) / 86400000));
+  }
+  function lateDaysLabel(d){ return d > 0 ? "Trễ " + d + " ngày" : "Trễ hôm nay"; }
+  function loadLateOrders(){
+    if(!state.connected) return;
+    sbGet(T_LATE + "?select=*&order=han.asc,ma_van_don.asc").then(function(rows){
+      rows = rows || [];
+      var pending = rows.filter(function(r){ return !r.da_tich; }).map(function(r){ return r.ma_van_don; });
+      if(!pending.length) return { rows:rows, ticked:{}, reasons:{} };
+      return Promise.all([
+        sbGet(T_OUTBOUND + "?code=" + encodeURIComponent(lateInList(pending)) + "&select=code"),
+        sbGet(T_UNPACKED + "?code=" + encodeURIComponent(lateInList(pending)) + "&select=code,reason,note&order=created_at.asc").catch(function(){ return []; })
+      ]).then(function(res){
+        var ticked = {}, reasons = {};
+        (res[0] || []).forEach(function(r){ ticked[String(r.code).toUpperCase()] = true; });
+        (res[1] || []).forEach(function(r){ reasons[String(r.code).toUpperCase()] = (UNPACKED_REASON_LABELS[r.reason] || r.reason || "") + (r.note ? ": " + r.note : ""); });
+        return { rows:rows, ticked:ticked, reasons:reasons };
+      });
+    }).then(function(d){
+      var items = [];
+      d.rows.forEach(function(r){
+        var code = String(r.ma_van_don).toUpperCase();
+        if(!r.da_tich && d.ticked[code]) return; /* vừa được tích đơn đi -> bỏ khỏi cảnh báo */
+        items.push({ code:code, group: r.da_tich ? "packed" : "unpacked", san:r.san, tao:r.tao_luc, days: lateDays(r.han),
+                     tichBoi:r.tich_boi, reason:d.reasons[code] || "", quet:r.quet_luc });
+      });
+      items.sort(function(a,b){ return b.days - a.days; }); /* trễ lâu nhất lên đầu */
+      lateState.items = items;
+      renderLateBoard();
+      lateCheckGate();
+      lateLoadAcks();
+    }).catch(function(err){
+      $("late-board").hidden = true;
+      console.error("load late orders error", err);
+    });
+  }
+  function lateRowsHtml(list){
+    return list.map(function(o){
+      var dat = o.tao ? fmtDayShort(dateStr(new Date(o.tao))) : "?";
+      var extra = o.group === "packed" ? (o.tichBoi ? " · " + escapeHtml(o.tichBoi) + " đã tích" : "") : (o.reason ? " · " + escapeHtml(o.reason) : "");
+      return '<div class="late-row"><div><div class="code" data-copy="' + escapeHtml(o.code) + '" title="Bấm để copy">' + escapeHtml(o.code) + '</div>' +
+        '<div class="meta">' + escapeHtml(PLATFORMS[o.san] || o.san || "?") + ' · đặt ' + dat + extra + '</div></div>' +
+        '<div class="days">' + lateDaysLabel(o.days) + '</div></div>';
+    }).join("");
+  }
+  function lateGroupsHtml(forceOpen){
+    return LATE_GROUPS.map(function(g){
+      var list = lateState.items.filter(function(o){ return o.group === g.key; });
+      if(!list.length) return "";
+      var h = '<div class="late-group ' + g.cls + '"><div class="late-group-head"><b>' + g.name + '</b><span class="cnt">' + list.length + ' đơn</span></div>' +
+        '<p class="late-group-hint">' + g.hint + '</p>';
+      if(forceOpen || list.length <= LATE_SHOW_MAX) return h + lateRowsHtml(list) + '</div>';
+      var byDay = {}, keys = [];
+      list.forEach(function(o){ if(!byDay[o.days]){ byDay[o.days] = 0; keys.push(o.days); } byDay[o.days]++; });
+      var sum = keys.map(function(k){ return byDay[k] + " đơn " + lateDaysLabel(k).toLowerCase(); }).join(" · ");
+      var open = !!lateState.open[g.key];
+      return h + '<div class="late-sum"><span>' + sum + '</span><button type="button" class="btn ghost small" data-late-toggle="' + g.key + '">' +
+        (open ? "Thu gọn" : "Xem " + list.length + " đơn") + '</button></div>' + (open ? lateRowsHtml(list) : "") + '</div>';
+    }).join("");
+  }
+  function renderLateBoard(){
+    var items = lateState.items, board = $("late-board");
+    if(!items.length){ board.hidden = true; return; }
+    board.hidden = false;
+    var maxDays = items[0].days;
+    $("late-total-text").textContent = items.length + " đơn trễ hạn" + (maxDays > 0 ? ", trễ nhất " + maxDays + " ngày" : "");
+    var quet = items[0].quet ? new Date(items[0].quet) : null, upd = $("late-updated");
+    var stale = quet && (Date.now() - quet.getTime()) > LATE_STALE_HOURS * 3600000;
+    upd.textContent = quet ? "Cập nhật " + fmtTime(quet) + " ngày " + fmtDayShort(dateStr(quet)) + (stale ? " — số liệu cũ, lần quét 20:00 gần nhất chưa chạy" : "") : "";
+    upd.className = "late-updated" + (stale ? " stale" : "");
+    $("late-groups").innerHTML = lateGroupsHtml(false);
+  }
+  function lateCopy(e){
+    var el = e.target.closest("[data-copy]");
+    if(!el || !navigator.clipboard) return;
+    var code = el.getAttribute("data-copy");
+    navigator.clipboard.writeText(code).then(function(){
+      el.textContent = "Đã copy"; setTimeout(function(){ el.textContent = code; }, 900);
+    }).catch(function(){});
+  }
+  $("late-board").addEventListener("click", function(e){
+    var tg = e.target.closest("[data-late-toggle]");
+    if(tg){ var k = tg.getAttribute("data-late-toggle"); lateState.open[k] = !lateState.open[k]; renderLateBoard(); return; }
+    lateCopy(e);
+  });
+  $("late-gate").addEventListener("click", lateCopy);
+  /* Màn chặn đầu ca: mỗi người mỗi ngày xác nhận 1 lần (lưu trên Supabase nên đổi máy không bị hỏi lại). */
+  function lateAckId(){ return todayStr() + "|" + state.staffName; }
+  function lateCheckGate(){
+    var gate = $("late-gate");
+    if(!lateState.items.length){ gate.hidden = true; return; }
+    if(!state.staffName || localStorage.getItem(STAFF_DATE_KEY) !== todayStr()) return; /* chưa chọn người trực -> chờ */
+    var id = lateAckId();
+    if(!gate.hidden){ lateRenderGate(); return; }
+    if(localStorage.getItem(LATE_ACK_KEY) === id) return;
+    if(lateState.ackChecked === id) { if(!lateState.acked) lateOpenGate(); return; }
+    sbGet(T_LATE_ACK + "?ngay=eq." + todayStr() + "&staff=eq." + encodeURIComponent(state.staffName) + "&select=id&limit=1").then(function(rows){
+      lateState.ackChecked = id;
+      lateState.acked = !!(rows && rows.length);
+      if(lateState.acked) localStorage.setItem(LATE_ACK_KEY, id); else lateOpenGate();
+    }).catch(function(err){ console.error("late ack check error", err); });
+  }
+  function lateRenderGate(){
+    var n = lateState.items.length;
+    $("late-gate-sub").textContent = "Chào " + state.staffName + ". Còn " + n + " đơn trễ hạn chưa đi. Xem hết danh sách rồi bấm xác nhận để vào làm việc.";
+    $("late-gate-groups").innerHTML = lateGroupsHtml(true);
+    $("late-gate-ok").textContent = "Đã xem " + n + " đơn trễ — vào làm việc";
+  }
+  function lateOpenGate(){
+    if(!lateState.items.length) return;
+    lateRenderGate();
+    $("late-gate").hidden = false;
+  }
+  $("late-gate-ok").addEventListener("click", function(){
+    var id = lateAckId();
+    localStorage.setItem(LATE_ACK_KEY, id);
+    lateState.ackChecked = id; lateState.acked = true;
+    $("late-gate").hidden = true;
+    insertRow(T_LATE_ACK, { ngay: todayStr(), staff: state.staffName, so_don: lateState.items.length })
+      .then(lateLoadAcks).catch(function(err){ console.error("late ack save error", err); });
+  });
+  function lateLoadAcks(){
+    var el = $("late-acks");
+    if(!lateState.items.length){ el.hidden = true; return; }
+    sbGet(T_LATE_ACK + "?ngay=eq." + todayStr() + "&select=staff,created_at&order=created_at.asc").then(function(rows){
+      if(!rows || !rows.length){ el.hidden = true; return; }
+      el.hidden = false;
+      el.textContent = "Đã xem hôm nay: " + rows.map(function(r){ return r.staff + " " + fmtTime(r.created_at); }).join(", ");
+    }).catch(function(){ el.hidden = true; });
+  }
 
   /* ---------------- notice board (Việc cần làm) ---------------- */
   // Banner cố định, hiện ở mọi tab — quản lý ghi việc cần làm (kèm link đơn hàng và/hoặc file PDF tuỳ chọn),
@@ -1754,6 +1942,8 @@
       if(!state.noticePollTimer) state.noticePollTimer = setInterval(loadNotices, 20000);
       loadReturnAlerts();
       if(!state.retalertPollTimer) state.retalertPollTimer = setInterval(loadReturnAlerts, 60000);
+      loadLateOrders(); // CẢNH BÁO ĐƠN TRỄ
+      if(!state.latePollTimer) state.latePollTimer = setInterval(loadLateOrders, 30000);
     }).catch(function(err){
       state.connected = false;
       connDot.classList.add("off"); connDot.classList.remove("on");
@@ -2071,6 +2261,7 @@
       $("outbound-platform-badge").innerHTML = '<span class="sw" style="width:8px;height:8px;border-radius:50%;background:var(--ink-3);display:inline-block;"></span> Chưa nhận diện được sàn — quét hoặc gõ mã vào ô trên';
       codeInput.focus();
       loadOutboundToday();
+      loadLateOrders(); // CẢNH BÁO ĐƠN TRỄ: vừa tích đơn đi -> bỏ ngay khỏi cảnh báo
     }, function(err){
       showToast("outbound-toast","err","Có lỗi khi lưu, thử lại.");
       console.error(err);
