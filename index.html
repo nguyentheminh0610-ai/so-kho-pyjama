@@ -201,6 +201,20 @@
   .retalert-item .days{ color:#c62a2f; font-weight:600; }
   .retalert-item .meta{ color:var(--ink-2); font-size:12px; }
   .retalert-transit{ margin:6px 0 0; font-size:12px; color:var(--ink-2); }
+  /* Thẻ "Đơn trước 16h": lưới ô theo ngày (25/11/2026) */
+  .cut-sum{ display:flex; justify-content:space-between; align-items:baseline; gap:8px; flex-wrap:wrap; font-size:14px; margin:0 0 8px; }
+  .cut-sum .rate{ font-weight:700; }
+  .cut-sum .rate.good{ color:var(--good-ink); } .cut-sum .rate.crit{ color:var(--crit-ink); }
+  .cut-sum .cnt{ font-size:12px; color:var(--ink-3); }
+  .cut-sum .tag{ font-size:12px; font-weight:600; padding:2px 10px; border-radius:20px; background:var(--surface-3); color:var(--ink-2); }
+  .cut-sum .tag.good{ color:var(--good-ink); } .cut-sum .tag.crit{ background:var(--crit-soft); color:var(--crit-ink); }
+  .cut-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(46px,1fr)); gap:4px; }
+  .cut-day{ border:1px solid var(--border-soft); background:var(--surface); border-radius:7px; padding:3px 0; text-align:center; cursor:pointer; font:inherit; color:var(--ink); line-height:1.25; }
+  .cut-day .d{ display:block; font-size:10.5px; color:var(--ink-3); }
+  .cut-day .p{ display:block; font-size:12.5px; font-weight:700; }
+  .cut-day.bad{ background:var(--crit-soft); border-color:transparent; } .cut-day.bad .p{ color:var(--crit-ink); }
+  .cut-day.off{ background:var(--surface-3); } .cut-day.off .p{ color:var(--ink-3); font-weight:500; }
+  .cut-day.sel{ outline:2px solid var(--ink); outline-offset:-1px; }
   /* CẢNH BÁO ĐƠN TRỄ (25/11/2026) */
   .late-total{ display:flex; align-items:center; gap:8px; font-size:14.5px; font-weight:700; color:#c62a2f; margin:0; }
   .late-updated{ font-size:11.5px; color:var(--ink-3); margin:2px 0 8px; }
@@ -672,12 +686,9 @@
     </div>
     <div class="card" id="cut-card">
       <div class="card-head"><h2>Đơn trước 16h</h2></div>
-      <p class="hint" id="cut-note" style="margin:0 0 8px;">Đang tải…</p>
-      <div class="kpi-grid" id="cut-people"></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
-        <button type="button" class="btn ghost small" id="cut-yday" style="width:auto;margin-top:0;">Xem đơn trễ hôm qua</button>
-        <button type="button" class="btn ghost small" id="cut-30" style="width:auto;margin-top:0;">Xem đơn trễ 30 ngày qua</button>
-      </div>
+      <div class="cut-sum" id="cut-sum">Đang tải…</div>
+      <div class="cut-grid" id="cut-grid"></div>
+      <p class="hint" id="cut-note" style="margin:8px 0 0;"></p>
       <div id="cut-detail" hidden style="margin-top:10px;"></div>
     </div>
     <div class="card" style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
@@ -851,7 +862,7 @@
           <b>Lương cứng:</b> quỹ cả kho mỗi tháng là 4.000.000đ mùa cao điểm (tháng 9 đến hết tháng 2) và 1.500.000đ mùa thấp điểm (tháng 3 đến 8). Tháng 28 hay 31 ngày vẫn đủ quỹ. Mỗi ngày lấy quỹ ÷ số ngày của tháng rồi chia đều cho các bạn đang trong kỳ hôm đó (cao điểm: 1 bạn 4tr, 2 bạn 2tr mỗi bạn, 3 bạn 1,33tr mỗi bạn; thấp điểm: 1 bạn 1,5tr, 2 bạn 750k mỗi bạn). Trả cố định, không trừ theo ngày công; bạn làm hộ nhau thì tự bù trừ ngoài sổ.<br>
           <b>Tiền đơn:</b> 300đ mỗi đơn riêng, 150đ mỗi đơn chung. <b>Hoàn:</b> 2.000đ mỗi kiện hoàn đã quét, kể cả hủy chưa đi.<br>
           <b>Thưởng chất lượng:</b> tính riêng từng bạn theo tỷ lệ lỗi Kho vận: dưới 0,5% được 500.000đ, từ 0,5% đến 1% được 250.000đ, trên 1% không có (đơn chung: mỗi người 0,5 đơn và 0,5 lỗi). Ngày vào làm: vào ngày 1 nhận đủ; vào từ ngày 2 đến ngày 15 thì chia 2; vào từ ngày 16 trở đi thì không có. Bạn nghỉ giữa tháng cũng chia 2.<br>
-          <b>Thưởng đơn trước 16h:</b> quỹ 500.000đ chia đều như lương cứng, tính riêng từng bạn: bạn nào trễ dưới 10% mới nhận phần của mình. Tử/mẫu mỗi ngày chia cho các bạn có quét hôm đó; ngày không bạn nào làm thì toàn bộ đơn đến hạn tính trễ, chia đều cho các bạn trong kỳ; ngày đặc biệt bỏ khỏi tử và mẫu.<br>
+          <b>Thưởng đơn trước 16h:</b> quỹ 500.000đ chung cả kho, chia đều theo tháng cho các bạn có lương tháng đó (không chia theo ngày). Tính tiền từ tháng 12/2026, tháng 11 chỉ xem số thử. Tỷ lệ trễ tính chung cả kho, cộng cả tháng (tổng đơn trễ ÷ tổng đơn đến hạn): dưới 10% thì mọi bạn nhận phần của mình, từ 10% thì không ai nhận. Ngày đặc biệt bỏ khỏi tử và mẫu.<br>
           <b>Thưởng gắn bó:</b> anh Minh cộng tay như cũ, chưa gồm trong tổng.</p></details>
       <details class="card" id="paynew-special" hidden style="margin-top:12px;"><summary style="cursor:pointer;font-weight:600;">Ngày đặc biệt (chỉ quản lý)</summary>
         <p class="sub" style="margin:10px 0;">Ngày lễ, shipper nghỉ, sàn lỗi: bỏ khỏi tử và mẫu của thưởng 16h; vẫn tính ngày công và vẫn chia quỹ. Chỉ sửa được trong tháng hiện tại (tháng trước chỉ sửa được tới ngày 5).</p>
@@ -3136,6 +3147,7 @@
   var PN_FUND_HARD_LOW = 1500000;  // mùa thấp điểm (tháng 3 đến 8): giữ như cũ, 1.500.000đ cả kho (chốt 17/11/2026)
   function payNewFund(high){ return high ? PN_FUND_HARD : PN_FUND_HARD_LOW; }
   var PN_FUND_16H = 500000;        // quỹ thưởng đơn trước 16h / tháng, chia đều như quỹ cứng
+  var PN_16H_START = "2026-12";    // thưởng 16h bắt đầu TÍNH TIỀN từ tháng này; tháng trước đó chỉ xem số thử (anh Minh chốt 25/11/2026)
   var PN_QUALITY_BONUS = 500000;   // thưởng lỗi đơn mức cao nhất mỗi người (dưới 0,5%); 0,5–1% = một nửa; trên 1% = 0
   var PN_LOYALTY_BONUS = 0;        // thưởng gắn bó: 0 = anh Minh vẫn cộng tay (quy chế cũ: 1.000.000đ mỗi 6 tháng liên tục)
   var PN_SCALE = 2520;             // bội chung của 1..10: chia tử/mẫu cho k bạn vẫn ra số nguyên
@@ -3169,7 +3181,6 @@
       for(d = p.startDay; d <= p.endDay; d++){
         var n = nd[d];                                         // số bạn đang trong kỳ hôm đó (>= 1 vì chính bạn này đang trong kỳ)
         p.cung += FUND / D / n;                        // lương cứng trả cố định, không nhân theo ngày công
-        p.fund16 += PN_FUND_16H / D / n;
         p.chuan += 1 / n;                                      // số ngày công "đáng lẽ" của bạn: 1 bạn = cả tháng, 2 bạn = nửa tháng...
       }
       p.chuan = Math.round(p.chuan * 10) / 10;
@@ -3184,32 +3195,33 @@
       p.quality = { amount: p.qualityBase * p.factor, note: p.quality.note };
       p.loyalty = PN_LOYALTY_BONUS;
       p.tuS = 0; p.mauS = 0;
+      p.fund16 = PN_FUND_16H / P.length;                       // quỹ 16h chia đều THEO THÁNG cho các bạn có lương tháng đó, không chia theo ngày trong kỳ (anh Minh chốt 25/11/2026)
     });
-    // ---- thưởng đơn trước 16h: tính RIÊNG TỪNG BẠN. Tử/mẫu của mỗi ngày chia cho các bạn có quét hôm đó ----
-    var X = 0, Y = 0, nSpecial = 0;
+    // ---- thưởng đơn trước 16h: tính CHUNG CẢ KHO, CẢ THÁNG (chủ shop chốt 25/11/2026, thay cho cách cũ 17/11
+    //      "tử/mẫu mỗi ngày chia cho các bạn có quét hôm đó"). Tỷ lệ = tổng đơn trễ / tổng đơn đến hạn của mọi ngày
+    //      thường có số liệu; dưới 10% thì MỌI bạn nhận phần quỹ của mình, từ 10% thì không ai nhận.
+    //      Ngày không ai làm không cần luật riêng nữa: đơn không đi thì job 20:00 đã tự đếm là trễ. ----
+    var X = 0, Y = 0, nSpecial = 0, tuAll = 0, mauAll = 0, days16 = [];
     for(d = 1; d <= o.lastDay; d++){
       var ds = dateOf(d);
-      if(o.special[ds]){ nSpecial++; continue; }               // ngày đặc biệt: bỏ khỏi tử và mẫu của mọi người (vẫn tính ngày công, vẫn chia quỹ)
+      if(o.special[ds]){ nSpecial++; days16.push({ ds: ds, special: true }); continue; }   // ngày đặc biệt: bỏ khỏi tử và mẫu (vẫn tính ngày công, vẫn chia quỹ)
       Y++;
       var cd = o.cutoff[ds];
-      if(!cd){ X++; continue; }
-      var workers = P.filter(function(p){ return p.days[ds]; });
-      if(workers.length){                                      // k bạn có quét thì mỗi bạn 1/k (chỉ 1 bạn thì bạn đó nhận hết)
-        workers.forEach(function(p){ p.tuS += cd.tu * PN_SCALE / workers.length; p.mauS += cd.mau * PN_SCALE / workers.length; });
-      } else {                                                 // ngày thường không bạn nào làm: toàn bộ đơn đến hạn tính trễ (tử = mẫu), chia đều cho các bạn trong kỳ
-        var dayD = d;
-        var inPeriod = P.filter(function(p){ return p.startDay <= dayD && dayD <= p.endDay; });
-        inPeriod.forEach(function(p){ p.tuS += cd.mau * PN_SCALE / inPeriod.length; p.mauS += cd.mau * PN_SCALE / inPeriod.length; });
-      }
+      if(!cd){ X++; days16.push({ ds: ds, missing: true }); continue; }
+      tuAll += cd.tu; mauAll += cd.mau;
+      days16.push({ ds: ds, tu: cd.tu, mau: cd.mau });
     }
+    var apply16 = o.ym >= PN_16H_START;                        // trước tháng bắt đầu: chỉ xem số thử, không cộng tiền
+    var pass16 = (mauAll === 0) || (10 * tuAll < mauAll);      // dưới 10% mới trả; đúng 10% thì không; mẫu = 0 coi như đạt
     var h16state = (Y === 0 || X === 0) ? "du" : (X === Y ? "cho" : "thieu");
     P.forEach(function(p){
-      var pass = (p.mauS === 0) || (10 * p.tuS < p.mauS);      // dưới 10% mới trả; đúng 10% thì không; mẫu = 0 coi như đạt
-      p.h16 = { state: h16state, X: X, Y: Y, tu: p.tuS / PN_SCALE, mau: p.mauS / PN_SCALE, rate: p.mauS ? p.tuS / p.mauS : null, pass: pass };
-      p.bonus16 = (h16state === "du" && !o.isCurrentMonth && pass) ? p.fund16 : 0;
+      var pass = pass16;
+      p.h16 = { state: h16state, X: X, Y: Y, tu: tuAll, mau: mauAll, rate: mauAll ? tuAll / mauAll : null, pass: pass, apply: apply16 };
+      p.bonus16 = (apply16 && h16state === "du" && !o.isCurrentMonth && pass) ? p.fund16 : 0;
       p.total = Math.round(p.cung + p.tienDon + p.congHoan + p.quality.amount + p.bonus16 + p.loyalty);   // làm tròn đồng 1 lần ở cuối
     });
-    return { people: P, nd: nd, X: X, Y: Y, nSpecial: nSpecial, h16state: h16state, fund: FUND, high: !!o.high };
+    return { people: P, nd: nd, X: X, Y: Y, nSpecial: nSpecial, h16state: h16state, fund: FUND, high: !!o.high,
+             days16: days16, tu16: tuAll, mau16: mauAll, pass16: pass16, apply16: apply16 };
   }
   /* PAYNEW-CORE-END */
 
@@ -3376,9 +3388,9 @@
       '<div class="kpi"><span class="lbl">Tổng lương tháng' + (S.isCurrentMonth ? " (tạm tính)" : "") + '</span><span class="val tabular">'+payMoney(sumNew)+'</span>' +
         '<span class="foot">'+list.length+' bạn · dùng cho P&amp;L</span></div>' +
       '<div class="kpi"><span class="lbl">Thưởng đơn trước 16h</span><span class="val tabular '+(h16 === "du" ? (nPass === list.length ? "good" : "warn") : "warn")+'">' +
-        (h16 === "cho" ? "chờ dữ liệu" : (h16 === "thieu" ? "thiếu "+out.X+"/"+out.Y+" ngày" : (S.isCurrentMonth ? "chốt cuối tháng" : nPass+"/"+list.length+" bạn đạt"))) + '</span>' +
+        (!out.apply16 ? "xem thử" : h16 === "cho" ? "chờ dữ liệu" : (h16 === "thieu" ? "thiếu "+out.X+"/"+out.Y+" ngày" : (S.isCurrentMonth ? "chốt cuối tháng" : (out.pass16 ? "cả kho đạt" : "cả kho không đạt")))) + '</span>' +
         '<span class="foot">' + (S.tablesMissing ? "chưa tạo bảng 16h/ngày đặc biệt (chạy file SQL mục 3-4)" :
-          "tính riêng từng bạn, trễ dưới 10% mới thưởng" + (out.nSpecial ? " · "+out.nSpecial+" ngày đặc biệt bỏ ra" : "")) + '</span></div>' +
+          (out.apply16 ? "" : "chưa áp dụng, tính tiền từ tháng 12/2026 · ") + "tính chung cả kho cả tháng, trễ dưới 10% mới thưởng" + (out.nSpecial ? " · "+out.nSpecial+" ngày đặc biệt bỏ ra" : "")) + '</span></div>' +
       (S.untraced ? '<div class="kpi"><span class="lbl">Lỗi chưa tra được người</span><span class="val tabular warn">'+S.untraced+'</span><span class="foot">không trừ thưởng của ai</span></div>' : '');
 
     $("paynew-people").innerHTML = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(290px,1fr));gap:12px;">' + list.map(function(p){
@@ -3386,7 +3398,8 @@
         return '<div class="pay-row"><span class="pay-label">'+label+(hint ? '<span class="sub" style="display:block;margin:0;">'+hint+'</span>' : '')+'</span><span class="pay-value tabular">'+value+'</span></div>';
       };
       var h = p.h16, h16Val, h16Hint;
-      if(h.state === "cho"){ h16Val = "chưa tính"; h16Hint = "chờ dữ liệu"; }
+      if(!h.apply){ h16Val = "chưa áp dụng"; h16Hint = "xem thử: trễ " + payNewPct(h.rate) + " (" + h.tu + "/" + h.mau + " đơn) · tính tiền từ tháng 12"; }
+      else if(h.state === "cho"){ h16Val = "chưa tính"; h16Hint = "chờ dữ liệu"; }
       else if(h.state === "thieu"){ h16Val = "chưa tính"; h16Hint = "thiếu "+h.X+"/"+h.Y+" ngày dữ liệu"; }
       else if(S.isCurrentMonth){ h16Val = "chốt cuối tháng"; h16Hint = "trễ tạm tính " + payNewPct(h.rate); }
       else { h16Val = payMoney(p.bonus16); h16Hint = "trễ " + payNewPct(h.rate) + (h.pass ? " — dưới 10%" : " — từ 10% trở lên"); }
@@ -3404,7 +3417,7 @@
           '<b>Lương cứng:</b> quỹ '+payMoney(out.fund)+(out.high ? ' (cao điểm)' : ' (thấp điểm)')+' ÷ '+S.D+' ngày, mỗi ngày chia đều cho các bạn đang trong kỳ. Trả cố định, không trừ theo ngày công; bạn làm hộ nhau thì tự bù trừ ngoài sổ.<br>' +
           '<b>Tiền đơn:</b> '+p.rieng+' × 300đ + '+p.chung+' × 150đ = '+payMoney(p.tienDon)+'. <b>Hoàn:</b> '+p.hoan+' kiện × 2.000đ = '+payMoney(p.congHoan)+'.<br>' +
           '<b>Chất lượng:</b> lỗi quy đổi '+(p.loi2/2)+' trên '+(p.don2/2)+' đơn quy đổi ('+p.quality.note+', mức '+payMoney(p.qualityBase)+(p.factor === 1 ? '' : ' × '+p.factor+' vì vào hoặc nghỉ giữa tháng')+').<br>' +
-          '<b>16h:</b> quỹ '+payMoney(PN_FUND_16H)+' chia đều theo ngày, phần của bạn '+payMoney(p.fund16)+'. Tử/mẫu tính riêng cho bạn: '+(+p.h16.tu.toFixed(2))+'/'+(+p.h16.mau.toFixed(2))+' đơn.</div>' +
+          '<b>16h:</b> quỹ '+payMoney(PN_FUND_16H)+' chia đều theo tháng cho '+list.length+' bạn, phần của bạn '+payMoney(p.fund16)+'. Tỷ lệ trễ chung cả kho cả tháng: '+p.h16.tu+'/'+p.h16.mau+' đơn.</div>' +
         '<button type="button" class="btn ghost small" data-pn-toggle style="margin-top:8px;">Xem cách tính chi tiết</button>' +
       '</div>';
     }).join("") + '</div>';
@@ -3469,57 +3482,77 @@
      và warehouse_cutoff_orders (từng đơn trễ, tự xoá sau 40 ngày). Đơn đến hạn của ngày D = đơn tạo từ 16:00 hôm
      trước đến 16:00 ngày D; trễ = hãng vận chuyển chưa lấy lúc 20:00. */
   var CUT_KEEP_DAYS = 40;
-  var cutView = "";           // "" | "y" (hôm qua) | "30" (30 ngày qua)
-  function cutShift(dateIso, delta){
-    var p = dateIso.split("-"), d = new Date(+p[0], +p[1] - 1, +p[2] + delta);
-    return dateStr(d);
+  /* Chốt 25/11/2026 (thay cho thẻ từng bạn + 2 nút "hôm qua / 30 ngày" dài lê thê): tỷ lệ tính CHUNG CẢ KHO cả tháng,
+     mỗi ngày 1 ô nhỏ ghi % trễ của ngày đó (từ 10% tô đỏ), bấm vào ô mới hiện đơn trễ của riêng ngày đó. */
+  var cutSel = "";            // ngày đang mở chi tiết (yyyy-mm-dd), "" = đóng
+  var cutDays = [];
+  function cutPct(tu, mau){
+    if(!mau) return "0%";
+    var p = tu / mau * 100;
+    return (p >= 10 ? Math.round(p) : Math.round(p * 10) / 10).toString().replace(".", ",") + "%";
   }
   function loadCutoffCard(){
     if(!state.connected) return;
-    payNewBuild(thisMonthStr(), false, true).then(function(S){ renderCutoffPeople(S); }).catch(function(err){
+    payNewBuild(thisMonthStr(), false, true).then(function(S){ renderCutoffCard(S); }).catch(function(err){
       console.error(err);
-      $("cut-people").innerHTML = "";
-      $("cut-note").textContent = "Chưa đọc được số liệu (chạy file SQL mục 3-4 chưa?).";
+      $("cut-grid").innerHTML = "";
+      $("cut-sum").textContent = "Chưa đọc được số liệu (chạy file SQL mục 3-4 chưa?).";
     });
-    if(cutView) loadCutoffDetail();
   }
-  function renderCutoffPeople(S){
-    var out = S.out, list = out.people;
-    var Y = out.Y, have = out.Y - out.X;
+  function renderCutoffCard(S){
+    var out = S.out, Y = out.Y, have = out.Y - out.X;
+    cutDays = out.days16 || [];
+    var mon = "Tháng " + (+thisMonthStr().slice(5, 7));
+    if(!out.mau16){
+      $("cut-sum").innerHTML = '<span>' + mon + ', cả kho: chưa có số liệu</span>';
+    } else {
+      var cls = out.pass16 ? "good" : "crit";
+      $("cut-sum").innerHTML = '<span><b>' + mon + ', cả kho:</b> <span class="rate ' + cls + '">' + cutPct(out.tu16, out.mau16) + ' trễ</span> ' +
+        '<span class="cnt">(' + out.tu16 + '/' + out.mau16 + ' đơn)</span></span>' +
+        '<span class="tag ' + (out.apply16 ? cls : "") + '">' + (out.apply16 ? (out.pass16 ? "Đang đạt" : "Đang không đạt") + ' thưởng ' + payMoney(PN_FUND_16H)
+          : "Số xem thử · tính thưởng từ tháng 12") + '</span>';
+    }
     $("cut-note").textContent = Y === 0 ? "Tháng này chưa có ngày nào để tính."
-      : "Tỷ lệ đơn trễ của từng bạn, cộng dồn từ đầu tháng đến nay (đã có số liệu " + have + "/" + Y + " ngày). Dưới 10% là đạt thưởng 16h. Trễ = hãng vận chuyển chưa lấy lúc 20:00.";
-    $("cut-people").innerHTML = list.map(function(p){
-      var h = p.h16, rate = h.rate;
-      var cls = rate === null ? "" : (h.pass ? "good" : "crit");
-      var pct = rate === null ? "—" : (rate * 100).toFixed(1).replace(".", ",") + "%";
-      var foot = h.mau > 0 ? (Math.round(h.tu * 10) / 10 + " đơn trễ / " + Math.round(h.mau * 10) / 10 + " đơn đến hạn · " + (h.pass ? "đang đạt" : "đang không đạt")) : "chưa có số liệu";
-      return '<div class="kpi"><span class="lbl">' + escapeHtml(p.name) + '</span><span class="val tabular ' + cls + '">' + pct + '</span><span class="foot">' + foot + '</span></div>';
-    }).join("") || '<div class="empty-state">Chưa có bạn nào có quét trong tháng.</div>';
+      : "Dưới 10% cả tháng là cả kho đạt thưởng 16h. Trễ = hãng vận chuyển chưa lấy lúc 20:00. Đã có số liệu " + have + "/" + Y + " ngày" +
+        (out.nSpecial ? ", " + out.nSpecial + " ngày đặc biệt không tính" : "") + ". Bấm vào một ngày để xem đơn trễ.";
+    renderCutoffGrid();
+    if(cutSel) loadCutoffDetail();
+  }
+  function renderCutoffGrid(){
+    $("cut-grid").innerHTML = cutDays.map(function(x){
+      var off = x.special || x.missing, bad = !off && x.mau > 0 && 10 * x.tu >= x.mau;
+      var title = x.special ? "Ngày đặc biệt, không tính" : (x.missing ? "Chưa có số liệu" : x.tu + " đơn trễ / " + x.mau + " đơn đến hạn");
+      return '<button type="button" class="cut-day' + (off ? " off" : "") + (bad ? " bad" : "") + (x.ds === cutSel ? " sel" : "") + '" data-day="' + x.ds + '" title="' + title + '">' +
+        '<span class="d">' + (+x.ds.slice(8)) + '</span><span class="p">' + (x.special ? "—" : (x.missing ? "?" : cutPct(x.tu, x.mau))) + '</span></button>';
+    }).join("");
   }
   function loadCutoffDetail(){
-    var det = $("cut-detail"), PL = { tiktok: "TikTok", shopee: "Shopee" };
-    var today = todayStr(), from = cutView === "y" ? cutShift(today, -1) : cutShift(today, -30), to = cutView === "y" ? cutShift(today, -1) : today;
+    var det = $("cut-detail"), PL = { tiktok: "TikTok", shopee: "Shopee" }, ds = cutSel;
+    var x = cutDays.filter(function(c){ return c.ds === ds; })[0];
+    if(!x){ det.hidden = true; return; }
+    var head = '<p class="hint" style="margin:0 0 6px;"><b>' + fmtDayShort(ds) + ':</b> ' +
+      (x.special ? "ngày đặc biệt, không tính vào tỷ lệ" : (x.missing ? "chưa có số liệu (job 20:00 chưa ghi ngày này)" :
+        x.tu + " đơn trễ / " + x.mau + " đơn đến hạn (" + cutPct(x.tu, x.mau) + ")")) + '</p>';
     det.hidden = false;
-    det.innerHTML = '<p class="hint">Đang tải…</p>';
-    sbGetAll(T_CUTOFF_ORDERS + "?ngay=gte." + from + "&ngay=lte." + to + "&select=ngay,san,ma_don,ma_van_don,tao_luc,tinh_trang&order=ngay.desc,tao_luc.asc").then(function(rows){
-      var title = cutView === "y" ? "Đơn trễ hôm qua (" + fmtDate(from) + ")" : "Đơn trễ 30 ngày qua";
-      if(!rows.length){
-        det.innerHTML = '<p class="hint"><b>' + title + ':</b> không có đơn nào' + (cutView === "y" ? " (hoặc job 20:00 chưa ghi ngày này)." : ".") + '</p>';
-        return;
-      }
-      det.innerHTML = '<p class="hint" style="margin:0 0 6px;"><b>' + title + ':</b> ' + rows.length + ' đơn</p>' +
-        '<div class="twrap"><table><thead><tr><th>Mã đơn</th><th>Ngày</th><th>Sàn</th><th>Tình trạng</th><th>Mã vận đơn</th></tr></thead><tbody>' +
+    if(x.special || x.missing || !x.tu){ det.innerHTML = head; return; }
+    det.innerHTML = head + '<p class="hint">Đang tải…</p>';
+    sbGetAll(T_CUTOFF_ORDERS + "?ngay=eq." + ds + "&select=san,ma_don,ma_van_don,tinh_trang&order=san.asc,tao_luc.asc").then(function(rows){
+      if(cutSel !== ds) return;
+      if(!rows.length){ det.innerHTML = head + '<p class="hint">Chi tiết đơn của ngày này đã tự xoá (chỉ lưu ' + CUT_KEEP_DAYS + ' ngày).</p>'; return; }
+      det.innerHTML = head + '<div class="twrap"><table><thead><tr><th>Mã vận đơn</th><th>Sàn</th><th>Tình trạng</th><th>Mã đơn</th></tr></thead><tbody>' +
         rows.map(function(o){
-          return '<tr><td class="mono">' + escapeHtml(o.ma_don) + '</td><td class="tabular">' + fmtDate(o.ngay).slice(0, 5) + '</td><td>' + escapeHtml(PL[o.san] || o.san) + '</td><td>' + escapeHtml(o.tinh_trang || "—") + '</td><td class="mono">' + escapeHtml(o.ma_van_don || "—") + '</td></tr>';
-        }).join("") + '</tbody></table></div><p class="hint" style="margin:8px 0 0;">Chi tiết đơn lưu ' + CUT_KEEP_DAYS + ' ngày rồi tự xoá. Đơn trễ tính chung cả kho, rồi chia cho các bạn có quét hôm đó.</p>';
-    }).catch(function(err){ console.error(err); det.innerHTML = '<p class="hint">Không đọc được danh sách đơn trễ.</p>'; });
+          return '<tr><td class="mono">' + escapeHtml(o.ma_van_don || "—") + '</td><td>' + escapeHtml(PL[o.san] || o.san) + '</td><td>' + escapeHtml(o.tinh_trang || "—") + '</td><td class="mono">' + escapeHtml(o.ma_don) + '</td></tr>';
+        }).join("") + '</tbody></table></div>';
+    }).catch(function(err){ console.error(err); det.innerHTML = head + '<p class="hint">Không đọc được danh sách đơn trễ.</p>'; });
   }
-  function cutToggle(v){
-    if(cutView === v){ cutView = ""; $("cut-detail").hidden = true; return; }
-    cutView = v; loadCutoffDetail();
-  }
-  $("cut-yday").addEventListener("click", function(){ cutToggle("y"); });
-  $("cut-30").addEventListener("click", function(){ cutToggle("30"); });
+  $("cut-grid").addEventListener("click", function(e){
+    var b = e.target.closest("[data-day]");
+    if(!b) return;
+    var ds = b.getAttribute("data-day");
+    cutSel = cutSel === ds ? "" : ds;
+    renderCutoffGrid();
+    if(cutSel) loadCutoffDetail(); else $("cut-detail").hidden = true;
+  });
 
   function runManualReconcile(){
     var btn = $("dash-reconcile-btn");
