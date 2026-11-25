@@ -691,6 +691,10 @@
       <p class="hint" id="cut-note" style="margin:8px 0 0;"></p>
       <div id="cut-detail" hidden style="margin-top:10px;"></div>
     </div>
+    <!-- Anh Minh chốt 25/11/2026: BỎ 3 khối đối chiếu (nút "Đối chiếu với sàn", "Mã đơn shipper chưa trả",
+         "Đơn kho đã nhận nhưng sàn chưa báo") khỏi tab Tổng quan. Chỉ ẨN bằng khung hidden này, code giữ nguyên;
+         muốn hiện lại thì bỏ chữ hidden ở dòng dưới. -->
+    <div id="dash-recon-wrap" hidden>
     <div class="card" style="display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;">
       <div>
         <b>Đối chiếu với sàn (Sổ Vận Hành)</b>
@@ -714,6 +718,7 @@
       <p class="sub">Kho đã tích nhận nhưng không thấy trong dữ liệu sàn báo hoàn (cùng 3 kỳ báo cáo ở trên) — có thể do quét nhầm mã, sàn chưa cập nhật, hoặc cần kiểm tra lại. Sửa/xoá tại mục 4. Danh sách. Bấm "Đối chiếu với sàn" ở trên để cập nhật.</p>
       <div id="dash-surplus"><div class="empty-state">Đang tải…</div></div>
     </div>
+    </div><!-- /dash-recon-wrap -->
   </section>
 
   <!-- ================= 4. LISTS (Danh sách) ================= -->
